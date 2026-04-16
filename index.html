@@ -1874,12 +1874,14 @@ let awardFilter = '전체';
 function sheetToGallery(rows) {
   var map = {};
   rows.forEach(function(row) {
-    var cat   = String(row['카테고리']  || row['category'] || '').trim();
-    var title = String(row['작품제목']  || row['title'] || '').trim();
+    var cat   = String(row['카테고리']  || '').trim();
+    var title = String(row['작품제목']  || '').trim();
     var pub   = String(row['공개여부']  || '공개').trim();
     if (!cat || !title || pub === '비공개') return;
 
     var img = String(row['이미지URL'] || '').trim();
+    
+    // 구글 드라이브 주소 변환 (아이패드/아이폰 호환용)
     if (img.indexOf('drive.google.com') !== -1) {
       var fid = '';
       if (img.indexOf('/d/') !== -1) {
@@ -1889,11 +1891,39 @@ function sheetToGallery(rows) {
       }
       
       if (fid) {
+        // 모바일은 800px, PC는 1200px로 불러와서 메모리 절약
         var imgWidth = window.innerWidth < 768 ? 'w800' : 'w1200';
-        // 이 부분이 핵심입니다. fid 변수를 안전하게 합칩니다.
-        img = 'https://lh3.googleusercontent.com/d/' + fid + '=' + imgWidth;
+        img = 'https://lh3.googleusercontent.com/u/0/d/' + fid + '=' + imgWidth;
       }
     }
+    
+    var grade = String(row['학년']     || '').trim();
+    var desc  = String(row['작품설명'] || '').trim();
+    var stu   = String(row['학생이름'] || '').trim();
+    var sub   = (grade && desc) ? (grade + ' · ' + desc) : (grade || desc || title);
+    
+    if (!map[cat]) map[cat] = [];
+    map[cat].push({ title: title, sub: sub, img: img, student: stu });
+  });
+
+  // 카테고리 순서대로 정리
+  var finalData = [];
+  for (var i = 0; i < CAT_ORDER.length; i++) {
+    var cName = CAT_ORDER[i];
+    if (map[cName] && map[cName].length > 0) {
+      var categoryObj = {
+        cat: cName,
+        desc: '',
+        slides: map[cName]
+      };
+      // 스타일 합치기
+      var style = CAT_STYLES[cName] || {};
+      for (var key in style) { categoryObj[key] = style[key]; }
+      finalData.push(categoryObj);
+    }
+  }
+  return finalData;
+}
     
     var grade = String(row['학년']     || '').trim();
     var desc  = String(row['작품설명'] || '').trim();
