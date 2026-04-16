@@ -332,26 +332,22 @@
     overflow: hidden; border-radius: 4px; background: var(--surface);
   }
   .viewer-track {
-    display: flex; height: 100%;
-    /* iOS Safari 렌더링 최적화 */
-    will-change: transform;
-    -webkit-backface-visibility: hidden;
-    backface-visibility: hidden;
-    transition: transform 0.5s ease;
+    position: relative;
+    width: 100%; height: 100%;
   }
   .viewer-slide {
-    /* flex:0 0 100% — 반드시 정확히 뷰어 너비를 차지 */
-    flex: 0 0 100%;
-    min-width: 100%;
-    width: 100%;
-    height: 100%;
-    position: relative;
-    flex-shrink: 0;
-    overflow: hidden;
-    /* iOS에서 슬라이드끼리 겹치는 현상 방지 */
-    isolation: isolate;
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s ease;
     -webkit-transform: translateZ(0);
     transform: translateZ(0);
+  }
+  .viewer-slide.active {
+    opacity: 1;
+    pointer-events: auto;
   }
   .viewer-slide-bg { position: absolute; inset: 0; opacity: 0.2; transition: opacity 0.4s; }
   .viewer-slide-img { width: 100%; height: 100%; object-fit: contain; display: block; background: var(--surface); }
@@ -1742,7 +1738,7 @@
 // ════════════════════════════════════════════════
 // 설정
 // ════════════════════════════════════════════════
-var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzA9O9AmBurJpgCzEIBgHkbRKNV6_PHitBS4gz7mkQ_pBipQb131ALHW1Y-KtEsLpAT/exec';
+var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw2Iq9vhFc5wcKCwmweFOQBy2rKnG-5AF-JEZB6p8htnLzxzPySQA_gGKOyJ9LI-DR7/exec';
 
 var CAT_STYLES = {
   '디자인융합수업': { grad:'linear-gradient(135deg,rgba(0,212,255,0.25),rgba(0,100,180,0.2))', accent:'#00d4ff' },
@@ -1898,7 +1894,7 @@ function renderSlides() {
   for (var i = 0; i < cat.slides.length; i++) {
     var sl    = cat.slides[i];
     var slide = document.createElement('div');
-    slide.className = 'viewer-slide';
+    slide.className = 'viewer-slide' + (i === 0 ? ' active' : '');
     // 이미지 있으면 img, onerror로 그라디언트 fallback
     // iOS: 모든 슬라이드를 즉시 렌더링 강제 (lazy 제거, translateZ로 GPU레이어 분리)
     var imgStyle = 'width:100%;height:100%;object-fit:contain;display:block;background:var(--surface);'
@@ -1930,13 +1926,13 @@ function renderSlides() {
 }
 
 function goSlide(idx, animate) {
-  var track = document.getElementById('viewerTrack');
-  if (!track || !GALLERY_DATA[gCat]) return;
+  if (!GALLERY_DATA[gCat]) return;
   gSlide = Math.max(0, Math.min(idx, GALLERY_DATA[gCat].slides.length - 1));
-  track.style.transition = (animate === false) ? 'none' : 'transform 0.5s ease';
-  // translate3d — GPU 가속으로 iOS 부드럽게
-  track.style.transform = 'translate3d(-' + (gSlide * 100) + '%, 0, 0)';
-  if (animate === false) setTimeout(function(){ track.style.transition = 'transform 0.5s ease'; }, 50);
+  // transform 대신 active 클래스로 전환 — iOS Safari 렌더링 문제 완전 해결
+  var slides = document.querySelectorAll('.viewer-slide');
+  for (var i = 0; i < slides.length; i++) {
+    slides[i].classList.toggle('active', i === gSlide);
+  }
   var cur = document.getElementById('viewerCur');
   if (cur) cur.innerHTML = gSlide + 1;
   var dotEls = document.querySelectorAll('.viewer-dot');
