@@ -339,13 +339,18 @@
     position: absolute;
     top: 0; left: 0;
     width: 100%; height: 100%;
+    /* z-index 방식 — iOS가 opacity:0 이미지 로드 안 하는 문제 해결 */
+    z-index: 0;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.4s ease;
+    transition: opacity 0.35s ease;
     -webkit-transform: translateZ(0);
     transform: translateZ(0);
+    /* 이미지는 항상 렌더링되도록 visibility는 visible 유지 */
+    visibility: visible;
   }
   .viewer-slide.active {
+    z-index: 1;
     opacity: 1;
     pointer-events: auto;
   }
@@ -1738,7 +1743,7 @@
 // ════════════════════════════════════════════════
 // 설정
 // ════════════════════════════════════════════════
-var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw2Iq9vhFc5wcKCwmweFOQBy2rKnG-5AF-JEZB6p8htnLzxzPySQA_gGKOyJ9LI-DR7/exec';
+var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzYeagSjHWkVqBV30Ys8UnMzbhKGEaOpPmGeju2TXlimm1DqYI-isLGS9ZcqBfJFksW/exec';
 
 var CAT_STYLES = {
   '디자인융합수업': { grad:'linear-gradient(135deg,rgba(0,212,255,0.25),rgba(0,100,180,0.2))', accent:'#00d4ff' },
@@ -1895,20 +1900,33 @@ function renderSlides() {
     var sl    = cat.slides[i];
     var slide = document.createElement('div');
     slide.className = 'viewer-slide' + (i === 0 ? ' active' : '');
-    // 이미지 있으면 img, onerror로 그라디언트 fallback
-    // iOS: 모든 슬라이드를 즉시 렌더링 강제 (lazy 제거, translateZ로 GPU레이어 분리)
-    var imgStyle = 'width:100%;height:100%;object-fit:contain;display:block;background:var(--surface);'
-      + '-webkit-transform:translateZ(0);transform:translateZ(0);';
-    var content = sl.img
-      ? '<img style="'+imgStyle+'" src="'+sl.img+'" alt="'+sl.title+'">'
-        + '<div class="viewer-slide-bg" style="background:'+cat.grad+'"></div>'
-      : '<div class="viewer-slide-bg" style="background:'+cat.grad+'"></div>';
-    slide.innerHTML = content +
-      '<div class="viewer-info">'+
-        '<div class="viewer-category">◈ '+cat.cat+'</div>'+
-        '<div class="viewer-title">'+sl.title+'</div>'+
-        '<div class="viewer-desc">'+sl.sub+(sl.student?' · '+sl.student:'')+'</div>'+
-      '</div>';
+
+    // 배경
+    var bg = document.createElement('div');
+    bg.className = 'viewer-slide-bg';
+    bg.style.background = cat.grad;
+    slide.appendChild(bg);
+
+    // 이미지 — DOM API로 생성해서 즉시 로드 트리거
+    if (sl.img) {
+      var img = document.createElement('img');
+      img.className = 'viewer-slide-img';
+      img.src = sl.img;
+      img.alt = sl.title;
+      // iOS: 이미지 로드 실패 시 배경만 표시
+      img.onerror = function() { this.style.display = 'none'; };
+      slide.appendChild(img);
+    }
+
+    // 텍스트 정보
+    var info = document.createElement('div');
+    info.className = 'viewer-info';
+    info.innerHTML =
+      '<div class="viewer-category">◈ '+cat.cat+'</div>'+
+      '<div class="viewer-title">'+sl.title+'</div>'+
+      '<div class="viewer-desc">'+sl.sub+(sl.student?' · '+sl.student:'')+'</div>';
+    slide.appendChild(info);
+
     track.appendChild(slide);
   }
 
@@ -1922,14 +1940,18 @@ function renderSlides() {
     }
   }
   if (total) total.innerHTML = cat.slides.length;
-  goSlide(0, false);
+  // 첫 번째 슬라이드는 renderSlides에서 이미 active 클래스 부여됨
+  var cur = document.getElementById('viewerCur');
+  if (cur) cur.innerHTML = 1;
 }
 
 function goSlide(idx, animate) {
   if (!GALLERY_DATA[gCat]) return;
   gSlide = Math.max(0, Math.min(idx, GALLERY_DATA[gCat].slides.length - 1));
-  // transform 대신 active 클래스로 전환 — iOS Safari 렌더링 문제 완전 해결
-  var slides = document.querySelectorAll('.viewer-slide');
+  // viewerTrack 안에서만 슬라이드 찾기
+  var track = document.getElementById('viewerTrack');
+  if (!track) return;
+  var slides = track.querySelectorAll('.viewer-slide');
   for (var i = 0; i < slides.length; i++) {
     slides[i].classList.toggle('active', i === gSlide);
   }
