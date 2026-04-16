@@ -1759,7 +1759,7 @@
 })();
 
 // ════════════════════════════════════════
-// 1. 커서 — 가장 먼저 정의
+// 1. 커서 및 기본 설정
 // ════════════════════════════════════════
 const cursor = document.getElementById('cursor');
 const ring   = document.getElementById('cursor-ring');
@@ -1777,32 +1777,11 @@ document.addEventListener('mousemove', e => {
   if (cursor) { cursor.style.left = e.clientX+'px'; cursor.style.top = e.clientY+'px'; }
   if (ring)   setTimeout(() => { ring.style.left = e.clientX+'px'; ring.style.top = e.clientY+'px'; }, 80);
 });
-document.querySelectorAll('button, a, .gallery-item, .category-card').forEach(el => {
-  el.addEventListener('mouseenter', cursorOn);
-  el.addEventListener('mouseleave', cursorOff);
-});
 
 // ════════════════════════════════════════
-// 2. 파티클
-// ════════════════════════════════════════
-(function() {
-  const container = document.getElementById('particles');
-  if (!container) return;
-  const colors = ['#e91e8c','#00d4ff','#ffe566','#a855f7'];
-  for (let i = 0; i < 28; i++) {
-    const p = document.createElement('div');
-    p.className = 'particle';
-    const s = 1 + Math.random() * 3;
-    p.style.cssText = `left:${Math.random()*100}%;--dx:${(Math.random()-0.5)*200}px;animation-duration:${8+Math.random()*12}s;animation-delay:${Math.random()*10}s;background:${colors[Math.floor(Math.random()*colors.length)]};width:${s}px;height:${s}px;box-shadow:0 0 6px currentColor;`;
-    container.appendChild(p);
-  }
-})();
-
-// ════════════════════════════════════════
-// 3. 갤러리 데이터 & 설정
+// 2. 파티클 및 갤러리 설정
 // ════════════════════════════════════════
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw2Iq9vhFc5wcKCwmweFOQBy2rKnG-5AF-JEZB6p8htnLzxzPySQA_gGKOyJ9LI-DR7/exec';
-
 const CAT_STYLES = {
   '디자인융합수업': { grad:'linear-gradient(135deg,rgba(0,212,255,0.25),rgba(0,100,180,0.2))',  accent:'#00d4ff' },
   '드로잉/조형':   { grad:'linear-gradient(135deg,rgba(0,212,255,0.18),rgba(0,80,140,0.15))',   accent:'#00d4ff' },
@@ -1813,205 +1792,105 @@ const CAT_STYLES = {
 };
 const CAT_ORDER = ['디자인융합수업','드로잉/조형','컴퓨터그래픽','캐릭터디자인','모션그래픽','개인작품'];
 
-const FALLBACK_DATA = [
-  { cat:'디자인융합수업', ...CAT_STYLES['디자인융합수업'], desc:'', slides:[
-    { title:'브랜드 아이덴티티', sub:'3학년 · BI 디자인', img:'', student:'' },
-    { title:'타이포 포스터',     sub:'2학년 · 타이포그래피', img:'', student:'' },
-    { title:'패키지 디자인',     sub:'3학년 · 패키지 디자인', img:'', student:'' },
-  ]},
-  { cat:'드로잉/조형', ...CAT_STYLES['드로잉/조형'], desc:'', slides:[
-    { title:'인체 크로키',  sub:'1학년 · 기초 드로잉', img:'', student:'' },
-    { title:'풍경 스케치',  sub:'1학년 · 사생 드로잉', img:'', student:'' },
-    { title:'수채화 정물',  sub:'2학년 · 수채화',       img:'', student:'' },
-  ]},
-  { cat:'컴퓨터그래픽', ...CAT_STYLES['컴퓨터그래픽'], desc:'', slides:[
-    { title:'디지털 합성',   sub:'3학년 · 포토샵', img:'', student:'' },
-    { title:'벡터 일러스트', sub:'2학년 · 일러스트레이터', img:'', student:'' },
-    { title:'디지털 페인팅', sub:'2학년 · 클립스튜디오', img:'', student:'' },
-  ]},
-  { cat:'캐릭터디자인', ...CAT_STYLES['캐릭터디자인'], desc:'', slides:[
-    { title:'오리지널 캐릭터', sub:'2학년 · OC 디자인', img:'', student:'' },
-    { title:'캐릭터 시트',     sub:'3학년 · 설정 디자인', img:'', student:'' },
-    { title:'이모티콘',         sub:'2학년 · 이모티콘 기획', img:'', student:'' },
-  ]},
-  { cat:'모션그래픽', ...CAT_STYLES['모션그래픽'], desc:'', slides:[
-    { title:'타이틀 시퀀스', sub:'3학년 · After Effects', img:'', student:'' },
-    { title:'인포모션',      sub:'3학년 · 인포그래픽 모션', img:'', student:'' },
-    { title:'로고 애니메이션', sub:'2학년 · 로고 모션', img:'', student:'' },
-  ]},
-  { cat:'개인작품', ...CAT_STYLES['개인작품'], desc:'', slides:[
-    { title:'졸업 작품',  sub:'3학년 · 개인 졸업 작품', img:'', student:'' },
-    { title:'자유 창작',  sub:'2학년 · 개인 창작물',     img:'', student:'' },
-    { title:'포트폴리오', sub:'3학년 · 입시 포트폴리오', img:'', student:'' },
-  ]},
-];
-
-let GALLERY_DATA = FALLBACK_DATA;
+let GALLERY_DATA = []; 
 let gCat = 0, gSlide = 0;
-
-// ════════════════════════════════════════
-// 4. 수상 데이터
-// ════════════════════════════════════════
-const AWARD_FALLBACK = [
-  { rank:'대상',    icon:'◈', title:'전국 학생 만화·웹툰 공모전',      student:'김민서', grade:'3학년', year:'2024', type:'교외', tags:['웹툰','캐릭터'] },
-  { rank:'최우수상',icon:'◈', title:'경기도 청소년 디자인 공모전',      student:'이준혁', grade:'2학년', year:'2024', type:'교외', tags:['포스터','타이포'] },
-  { rank:'우수상',  icon:'◈', title:'교내 졸업작품 전시 우수상',        student:'박소연', grade:'3학년', year:'2024', type:'교내', tags:['졸업작품'] },
-  { rank:'금상',    icon:'◈', title:'전국 고교생 일러스트 공모전',      student:'최유진', grade:'3학년', year:'2023', type:'교외', tags:['일러스트'] },
-  { rank:'교장상',  icon:'◈', title:'교내 디자인 포트폴리오 경진대회', student:'정하은', grade:'2학년', year:'2024', type:'교내', tags:['포트폴리오'] },
-  { rank:'장려상',  icon:'◈', title:'청소년 영상·모션 공모전',          student:'강지호', grade:'3학년', year:'2023', type:'교외', tags:['모션그래픽'] },
-];
-let AWARD_DATA_LIVE = AWARD_FALLBACK;
-
-const RANK_COLORS = {
-  '대상':'#00d4ff','금상':'#00d4ff','최우수상':'#00d4ff','우수상':'#00d4ff',
-  '장려상':'#e91e8c','교장상':'#e91e8c','특별상':'#e91e8c','입선':'#6060a0',
-};
+let AWARD_DATA_LIVE = [];
 let awardFilter = '전체';
 
 // ════════════════════════════════════════
-// 5. 시트 데이터 변환 함수
+// 3. 핵심 로직: 시트 데이터 변환 (아이패드 호환 최적화)
 // ════════════════════════════════════════
 function sheetToGallery(rows) {
   var map = {};
   rows.forEach(function(row) {
-    var cat   = String(row['카테고리']  || '').trim();
-    var title = String(row['작품제목']  || '').trim();
-    var pub   = String(row['공개여부']  || '공개').trim();
+    var cat = String(row['카테고리'] || '').trim();
+    var title = String(row['작품제목'] || '').trim();
+    var pub = String(row['공개여부'] || '공개').trim();
     if (!cat || !title || pub === '비공개') return;
 
     var img = String(row['이미지URL'] || '').trim();
-    
-    // 구글 드라이브 주소 변환 (아이패드/아이폰 호환용)
     if (img.indexOf('drive.google.com') !== -1) {
       var fid = '';
-      if (img.indexOf('/d/') !== -1) {
-        fid = img.split('/d/')[1].split('/')[0];
-      } else if (img.indexOf('id=') !== -1) {
-        fid = img.split('id=')[1].split('&')[0];
-      }
-      
+      if (img.indexOf('/d/') !== -1) fid = img.split('/d/')[1].split('/')[0];
+      else if (img.indexOf('id=') !== -1) fid = img.split('id=')[1].split('&')[0];
       if (fid) {
-        // 모바일은 800px, PC는 1200px로 불러와서 메모리 절약
         var imgWidth = window.innerWidth < 768 ? 'w800' : 'w1200';
-        img = 'https://lh3.googleusercontent.com/u/0/d/' + fid + '=' + imgWidth;
+        img = 'https://lh3.googleusercontent.com/d/' + fid + '=' + imgWidth;
       }
     }
-    
-    var grade = String(row['학년']     || '').trim();
-    var desc  = String(row['작품설명'] || '').trim();
-    var stu   = String(row['학생이름'] || '').trim();
-    var sub   = (grade && desc) ? (grade + ' · ' + desc) : (grade || desc || title);
-    
+    var grade = String(row['학년'] || '').trim();
+    var desc = String(row['작품설명'] || '').trim();
+    var stu = String(row['학생이름'] || '').trim();
+    var sub = (grade && desc) ? (grade + ' · ' + desc) : (grade || desc || title);
     if (!map[cat]) map[cat] = [];
     map[cat].push({ title: title, sub: sub, img: img, student: stu });
   });
 
-  // 카테고리 순서대로 정리
   var finalData = [];
   for (var i = 0; i < CAT_ORDER.length; i++) {
     var cName = CAT_ORDER[i];
     if (map[cName] && map[cName].length > 0) {
-      var categoryObj = {
-        cat: cName,
-        desc: '',
-        slides: map[cName]
-      };
-      // 스타일 합치기
+      var obj = { cat: cName, desc: '', slides: map[cName] };
       var style = CAT_STYLES[cName] || {};
-      for (var key in style) { categoryObj[key] = style[key]; }
-      finalData.push(categoryObj);
+      for (var key in style) { obj[key] = style[key]; }
+      finalData.push(obj);
     }
   }
   return finalData;
 }
-    
-    var grade = String(row['학년']     || '').trim();
-    var desc  = String(row['작품설명'] || '').trim();
-    var stu   = String(row['학생이름'] || '').trim();
-    var sub   = grade && desc ? (grade + ' · ' + desc) : (grade || desc || title);
-    
-    if (!map[cat]) map[cat] = [];
-    map[cat].push({ title: title, sub: sub, img: img, student: stu });
-  });
 
-  return CAT_ORDER
-    .filter(function(c) { return map[c] && map[c].length > 0; })
-    .map(function(c) { 
-      // 기존 스타일과 데이터를 안전하게 합치는 방식입니다.
-      var base = { cat: c, desc: '', slides: map[c] };
-      var style = CAT_STYLES[c] || {};
-      for (var key in style) { base[key] = style[key]; }
-      return base;
-    });
-}
-
-const RANK_ICON_MAP = {'대상':'◈','금상':'◈','최우수상':'◈','우수상':'◈','장려상':'◈','교장상':'◈','특별상':'◈','입선':'◈'};
 function sheetToAward(rows) {
-  return rows
-    .filter(r => String(r['수상명']||'').trim() && String(r['공개여부']||'공개').trim() !== '비공개')
+  return rows.filter(r => String(r['수상명']||'').trim() && String(r['공개여부']||'공개').trim() !== '비공개')
     .map(r => ({
-      rank:    String(r['수상등급'] || '').trim(),
-      icon:    RANK_ICON_MAP[String(r['수상등급']||'').trim()] || '◈',
-      title:   String(r['공모전명'] || '').trim(),
+      rank: String(r['수상등급'] || '').trim(),
+      icon: '◈',
+      title: String(r['공모전명'] || '').trim(),
       student: String(r['학생이름'] || '').trim(),
-      grade:   String(r['학년']     || '').trim(),
-      year:    String(r['수상연도'] || '').trim(),
-      type:    String(r['교내외']   || '교외').trim(),
-      tags:    String(r['태그']     || '').split(',').map(t=>t.trim()).filter(Boolean),
+      grade: String(r['학년'] || '').trim(),
+      year: String(r['수상연도'] || '').trim(),
+      type: String(r['교내외'] || '교외').trim(),
+      tags: String(r['태그'] || '').split(',').map(t=>t.trim()).filter(Boolean),
     }));
 }
 
 // ════════════════════════════════════════
-// 6. 갤러리 렌더링 함수
+// 4. 렌더링 함수 (빌드 및 슬라이드 제어)
 // ════════════════════════════════════════
 function buildGallery() {
   const menu = document.getElementById('galleryMenu');
-  if (!menu) return;
+  if (!menu || GALLERY_DATA.length === 0) return;
   menu.innerHTML = '';
   GALLERY_DATA.forEach((cat, ci) => {
     const item = document.createElement('div');
     item.className = 'gallery-menu-item' + (ci === 0 ? ' active' : '');
-    item.innerHTML = `
-      <div class="menu-bg" style="background:${cat.grad}"></div>
+    item.innerHTML = `<div class="menu-bg" style="background:${cat.grad}"></div>
       <div class="menu-content">
         <div class="menu-num">CAT · 0${ci+1}</div>
         <div class="menu-label">${cat.cat}</div>
         <div class="menu-count">${cat.slides.length}개 작품</div>
-      </div>
-      <div class="menu-bar"></div>`;
-    item.addEventListener('mouseenter', () => switchCat(ci));
-    item.addEventListener('click',      () => switchCat(ci));
-    item.addEventListener('mouseenter', cursorOn);
-    item.addEventListener('mouseleave', cursorOff);
+      </div><div class="menu-bar"></div>`;
+    item.onclick = () => switchCat(ci);
     menu.appendChild(item);
   });
   renderSlides();
 }
 
 function renderSlides() {
-  const cat   = GALLERY_DATA[gCat];
+  const cat = GALLERY_DATA[gCat];
   const track = document.getElementById('viewerTrack');
-  const dots  = document.getElementById('viewerDots');
+  const dots = document.getElementById('viewerDots');
   const total = document.getElementById('viewerTotal');
-  if (!track || !dots || !total) return;
+  if (!track || !cat) return;
   track.innerHTML = '';
   cat.slides.forEach(sl => {
     const slide = document.createElement('div');
     slide.className = 'viewer-slide';
-    const bgHTML = sl.img
-      ? `<img class="viewer-slide-img"
-           src="${sl.img}"
-           alt="${sl.title}"
-           onerror="this.style.display='none';this.nextElementSibling&&(this.nextElementSibling.style.display='flex')"
-         >`
-      : `<div class="viewer-slide-bg" style="background:${cat.grad}"></div>`;
-    // 이미지 있을 때 fallback 배경도 같이 넣기
-    const fallbackBg = `<div class="viewer-slide-bg" style="background:${cat.grad};display:none"></div>`;
-    slide.innerHTML = `${sl.img ? bgHTML + fallbackBg : bgHTML}<div class="viewer-info">
-      <div class="viewer-category">◈ ${cat.cat}</div>
-      <div class="viewer-title">${sl.title}</div>
-      <div class="viewer-desc">${sl.sub}${sl.student ? ' · '+sl.student : ''}</div>
-    </div>`;
+    slide.innerHTML = `<img class="viewer-slide-img" src="${sl.img}" onerror="this.src='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='">
+      <div class="viewer-info">
+        <div class="viewer-category">◈ ${cat.cat}</div>
+        <div class="viewer-title">${sl.title}</div>
+        <div class="viewer-desc">${sl.sub}${sl.student ? ' · '+sl.student : ''}</div>
+      </div>`;
     track.appendChild(slide);
   });
   dots.innerHTML = '';
@@ -2027,89 +1906,52 @@ function renderSlides() {
 
 function goSlide(idx, animate = true) {
   const cat = GALLERY_DATA[gCat];
+  if(!cat) return;
   gSlide = Math.max(0, Math.min(idx, cat.slides.length - 1));
   const track = document.getElementById('viewerTrack');
   if (!track) return;
-
-  if (!animate) track.style.transition = 'none';
-  else track.style.transition = 'transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
-
-  // % 방식이 모바일에서 엇나가는 것을 방지하기 위해 transform 직접 지정
-  track.style.transform = `translate3d(-${gSlide * 100}%, 0, 0)`; // translate3d는 하드웨어 가속을 씁니다.
-
-  if (!animate) {
-    // 강제 리플로우(Reflow) 발생시켜 모바일 렌더링 깨짐 방지
-    track.offsetHeight; 
-    setTimeout(() => track.style.transition = '', 50);
-  }
-
-  const cur = document.getElementById('viewerCur');
-  if (cur) cur.textContent = gSlide + 1;
-  
-  // 닷(Dot) 업데이트
+  track.style.transition = animate ? 'transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94)' : 'none';
+  track.style.transform = `translate3d(-${gSlide * 100}%, 0, 0)`;
+  if (!animate) { track.offsetHeight; }
+  document.getElementById('viewerCur').textContent = gSlide + 1;
   document.querySelectorAll('.viewer-dot').forEach((d, i) => d.classList.toggle('active', i === gSlide));
 }
 
 function galleryPrev() { goSlide(gSlide - 1); }
 function galleryNext() { goSlide(gSlide + 1); }
-
-function switchCat(ci) {
-  if (ci === gCat) return;
-  gCat = ci; gSlide = 0;
+function switchCat(ci) { gCat = ci; gSlide = 0; 
   document.querySelectorAll('.gallery-menu-item').forEach((el,i) => el.classList.toggle('active', i===ci));
-  renderSlides();
+  renderSlides(); 
 }
 
-// 창 크기 바뀌면 슬라이드 위치 재계산
-window.addEventListener('resize', () => {
-  const track = document.getElementById('viewerTrack');
-  if (!track) return;
-  track.style.transition = 'none';
-  track.style.transform = `translateX(-${gSlide * 100}%)`;
-  setTimeout(() => track.style.transition = '', 50);
-});
-
-// 터치 스와이프
-(function() {
-  let startX = 0;
-  const viewer = document.querySelector('#gallery');
-  if (!viewer) return;
-  viewer.addEventListener('touchstart', e => { startX = e.touches[0].clientX; }, { passive:true });
-  viewer.addEventListener('touchend',   e => {
-    const dx = e.changedTouches[0].clientX - startX;
-    if (Math.abs(dx) > 50) dx < 0 ? galleryNext() : galleryPrev();
-  });
-})();
-
 // ════════════════════════════════════════
-// 7. 수상 렌더링 함수
+// 5. 데이터 로드 및 초기화
 // ════════════════════════════════════════
+async function loadSheetData() {
+  try {
+    const res = await fetch(APPS_SCRIPT_URL, { redirect:'follow' });
+    const json = await res.json();
+    if (json.gallery) GALLERY_DATA = sheetToGallery(json.gallery);
+    if (json.award) AWARD_DATA_LIVE = sheetToAward(json.award);
+  } catch(e) { console.error('Data Load Error:', e); }
+  buildGallery();
+  renderAwards();
+}
+
 function renderAwards() {
   const grid = document.getElementById('awardGrid');
-  if (!grid) return;
+  if (!grid || AWARD_DATA_LIVE.length === 0) return;
   grid.innerHTML = '';
   const list = awardFilter === '전체' ? AWARD_DATA_LIVE : AWARD_DATA_LIVE.filter(a => a.type === awardFilter);
-  if (list.length === 0) {
-    grid.innerHTML = '<div class="award-empty">해당 수상 내역이 없습니다.</div>';
-    return;
-  }
   list.forEach((a, i) => {
-    const color = RANK_COLORS[a.rank] || 'var(--accent3)';
-    const card  = document.createElement('div');
+    const card = document.createElement('div');
     card.className = 'award-card';
-    card.style.cssText = `--award-color:${color};animation-delay:${i*0.07}s`;
-    card.innerHTML = `
-      <div class="award-card-inner">
-        <div class="award-rank"><span class="award-rank-icon">${a.icon}</span>${a.rank}</div>
-        <div class="award-title">${a.title}</div>
-        <div class="award-student"><strong>${a.student}</strong> · ${a.grade} · ${a.year}</div>
-        <div class="award-meta">
-          <span class="award-tag type-${a.type==='교외'?'out':'in'}">${a.type==='교외'?'교외':'교내'}</span>
-          ${a.tags.map(t=>`<span class="award-tag">${t}</span>`).join('')}
-        </div>
-      </div>`;
-    card.addEventListener('mouseenter', cursorOn);
-    card.addEventListener('mouseleave', cursorOff);
+    card.innerHTML = `<div class="award-card-inner">
+      <div class="award-rank">${a.rank}</div>
+      <div class="award-title">${a.title}</div>
+      <div class="award-student"><strong>${a.student}</strong> · ${a.grade}</div>
+      <div class="award-meta"><span class="award-tag">${a.type}</span></div>
+    </div>`;
     grid.appendChild(card);
   });
 }
@@ -2121,112 +1963,14 @@ function filterAward(type, btn) {
   renderAwards();
 }
 
-// ════════════════════════════════════════
-// 8. 시트 데이터 로드 (모든 함수 정의 후 호출)
-// ════════════════════════════════════════
-async function loadSheetData() {
-  const track = document.getElementById('viewerTrack');
-  if (track) {
-    track.innerHTML = `<div class="viewer-slide" style="display:flex;align-items:center;justify-content:center;">
-      <div style="text-align:center;font-family:'Orbitron',monospace;font-size:0.65rem;letter-spacing:0.2em;color:var(--text-dim)">
-        <div style="width:40px;height:40px;border:2px solid var(--accent2);border-top-color:transparent;border-radius:50%;margin:0 auto 16px;animation:spin 0.8s linear infinite"></div>
-        LOADING WORKS...
-      </div>
-    </div>`;
-  }
-  if (!APPS_SCRIPT_URL) { buildGallery(); renderAwards(); return; }
-
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
-  try {
-    const res  = await fetch(APPS_SCRIPT_URL, { redirect:'follow', signal:controller.signal });
-    clearTimeout(timeout);
-    if (!res.ok) throw new Error('fetch failed');
-    const json = await res.json();
-    if (json.gallery && Array.isArray(json.gallery)) {
-      const converted = sheetToGallery(json.gallery);
-      if (converted.length > 0) GALLERY_DATA = converted;
-    }
-    if (json.award && Array.isArray(json.award)) {
-      const converted = sheetToAward(json.award);
-      if (converted.length > 0) AWARD_DATA_LIVE = converted;
-    }
-  } catch(e) {
-    clearTimeout(timeout);
-    console.warn('시트 연결 실패, 샘플 데이터 사용:', e);
-  }
-  buildGallery();
-  renderAwards();
-}
-
-// ★ 실행 — 모든 함수 정의 완료 후
-loadSheetData();
-
-// ════════════════════════════════════════
-// 9. 스크롤 리빌 & 카운터
-// ════════════════════════════════════════
-const observer = new IntersectionObserver(entries => {
-  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
-}, { threshold:0.1, rootMargin:'0px 0px -50px 0px' });
-document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
-
-function animateCounter(el, target) {
-  let cur = 0;
-  const step = target / 60;
-  const iv = setInterval(() => {
-    cur += step;
-    if (cur >= target) { cur = target; clearInterval(iv); }
-    el.textContent = Math.floor(cur);
-  }, 20);
-}
-const statsObs = new IntersectionObserver(entries => {
-  entries.forEach(e => {
-    if (e.isIntersecting) {
-      document.querySelectorAll('[data-target]').forEach(el => animateCounter(el, parseInt(el.dataset.target)));
-      statsObs.disconnect();
-    }
-  });
-}, { threshold:0.5 });
-const sb = document.querySelector('.stats-bar');
-if (sb) statsObs.observe(sb);
-
-// ════════════════════════════════════════
-// 10. 카드·버튼 인터랙션
-// ════════════════════════════════════════
-document.querySelectorAll('.club-card').forEach(el => {
-  el.addEventListener('mouseenter', cursorOn);
-  el.addEventListener('mouseleave', cursorOff);
-  el.addEventListener('mousemove', e => {
-    const rect = el.getBoundingClientRect();
-    el.style.setProperty('--mx', ((e.clientX - rect.left) / rect.width  * 100).toFixed(1) + '%');
-    el.style.setProperty('--my', ((e.clientY - rect.top)  / rect.height * 100).toFixed(1) + '%');
-  });
-});
-
-const topBtn = document.getElementById('topBtn');
-if (topBtn) {
-  window.addEventListener('scroll', () => topBtn.classList.toggle('visible', window.scrollY > 400));
-  topBtn.addEventListener('mouseenter', cursorOn);
-  topBtn.addEventListener('mouseleave', cursorOff);
-}
-
-// ════════════════════════════════════════
-// 11. 커리큘럼 함수
-// ════════════════════════════════════════
 function switchGrade(idx) {
   document.querySelectorAll('.cur-tab').forEach((t,i)  => t.classList.toggle('active', i===idx));
   document.querySelectorAll('.cur-panel').forEach((p,i) => p.classList.toggle('active', i===idx));
-  animateCurBars(document.getElementById('cur-panel-'+idx));
 }
 function toggleCurSubject(el) { el.classList.toggle('open'); }
-function animateCurBars(panel) {
-  if (!panel) return;
-  panel.querySelectorAll('.cur-bar-fill').forEach(bar => {
-    bar.style.width = '0%';
-    setTimeout(() => { bar.style.width = bar.dataset.val + '%'; }, 100);
-  });
-}
-setTimeout(() => animateCurBars(document.getElementById('cur-panel-0')), 800);
+
+// 초기 실행
+window.onload = loadSheetData;
 </script>
 </body>
 </html>
