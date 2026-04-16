@@ -330,33 +330,35 @@
     position: relative; width: 100%; height: 500px;
     border: 1px solid rgba(255,255,255,0.08);
     overflow: hidden; border-radius: 4px; background: var(--surface);
-    /* 모바일에서 정확한 너비 보장 */
-    contain: layout;
   }
-.viewer-track {
-  display: flex;
-  height: 100%;
-  will-change: transform; /* 모바일 브라우저에게 움직일 것이라고 미리 알림 */
-  transition: transform 0.5s ease;
-  -webkit-backface-visibility: hidden; /* 아이폰/아이패드 렌더링 깜빡임 방지 */
-  backface-visibility: hidden;
-}
-
-.viewer-slide {
-  flex: 0 0 100%;
-  width: 100%;
-  position: relative;
-  overflow: hidden;
-  /* 모바일에서 이미지가 겹쳐 보이는 현상 방지 */
-  isolation: isolate; 
-}
+  .viewer-track {
+    display: flex; height: 100%;
+    /* iOS Safari 렌더링 최적화 */
+    will-change: transform;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    transition: transform 0.5s ease;
+  }
+  .viewer-slide {
+    /* flex:0 0 100% — 반드시 정확히 뷰어 너비를 차지 */
+    flex: 0 0 100%;
+    min-width: 100%;
+    width: 100%;
+    height: 100%;
+    position: relative;
+    flex-shrink: 0;
+    overflow: hidden;
+    /* iOS에서 슬라이드끼리 겹치는 현상 방지 */
+    isolation: isolate;
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+  }
   .viewer-slide-bg { position: absolute; inset: 0; opacity: 0.2; transition: opacity 0.4s; }
   .viewer-slide-img { width: 100%; height: 100%; object-fit: contain; display: block; background: var(--surface); }
   .viewer-info {
     position: absolute; bottom: 0; left: 0; right: 0;
     padding: 48px 32px 28px;
     background: linear-gradient(0deg, rgba(10,10,18,0.97) 0%, rgba(10,10,18,0.5) 60%, transparent 100%);
-    overflow: hidden;
   }
   .viewer-category {
     font-family: "Orbitron", monospace; font-size: 0.65rem;
@@ -367,9 +369,8 @@
     font-family: "Bebas Neue", sans-serif; font-size: 2.8rem;
     line-height: 1; letter-spacing: 0.04em; margin-bottom: 6px;
     transition: opacity 0.3s;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .viewer-desc { font-size: 0.8rem; color: var(--text-dim); letter-spacing: 0.05em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .viewer-desc { font-size: 0.8rem; color: var(--text-dim); letter-spacing: 0.05em; }
   .viewer-counter {
     position: absolute; top: 16px; right: 20px; z-index: 10;
     font-family: "Orbitron", monospace; font-size: 0.6rem;
@@ -568,7 +569,7 @@
     .viewer-title { font-size: 1.6rem; }
     .viewer-info { padding: 32px 16px 16px; }
     .viewer-arrow { width: 36px; height: 36px; font-size: 0.75rem; }
-    .gallery-menu { grid-template-columns: repeat(3,1fr); gap: 6px; }
+    .gallery-menu { grid-template-columns: repeat(3,1fr); gap: 8px; }
     .gallery-menu-item { height: 88px; }
     .menu-label { font-size: 0.9rem; }
 
@@ -604,7 +605,7 @@
   /* ── 소형 모바일 (480px 이하) ── */
   @media (max-width: 480px) {
     .gallery-viewer { height: 220px; }
-    .gallery-menu { grid-template-columns: repeat(2,1fr); gap: 6px; }
+    .gallery-menu { grid-template-columns: repeat(2,1fr); grid-template-rows: auto auto; }
     .viewer-title { font-size: 1.3rem; }
     .stat { min-width: 100px; }
     .award-card-inner { padding: 16px 16px 14px; }
@@ -1738,117 +1739,206 @@
 </footer>
 
 <script>
-// ════════════════════════════════════════
-// 0. 전역 설정 (안전한 변수 선언)
-// ════════════════════════════════════════
-var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyuufGn3VpVSX3BYTkAj6Y4UMtAhk1cp93a6tXqZZh80ogObYBtIDlBMr-ViKnLfbpG/exec';
+// ════════════════════════════════════════════════
+// 설정
+// ════════════════════════════════════════════════
+var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw2Iq9vhFc5wcKCwmweFOQBy2rKnG-5AF-JEZB6p8htnLzxzPySQA_gGKOyJ9LI-DR7/exec';
+
 var CAT_STYLES = {
   '디자인융합수업': { grad:'linear-gradient(135deg,rgba(0,212,255,0.25),rgba(0,100,180,0.2))', accent:'#00d4ff' },
   '드로잉/조형':   { grad:'linear-gradient(135deg,rgba(0,212,255,0.18),rgba(0,80,140,0.15))', accent:'#00d4ff' },
   '컴퓨터그래픽':  { grad:'linear-gradient(135deg,rgba(233,30,140,0.22),rgba(140,0,80,0.15))', accent:'#e91e8c' },
-  '캐릭터디자인':  { grad:'linear-gradient(135deg,rgba(0,212,255,0.2),rgba(0,140,200,0.15))', accent:'#00d4ff' },
+  '캐릭터디자인':  { grad:'linear-gradient(135deg,rgba(0,212,255,0.2),rgba(0,140,200,0.15))',  accent:'#00d4ff' },
   '모션그래픽':    { grad:'linear-gradient(135deg,rgba(233,30,140,0.18),rgba(140,0,80,0.12))', accent:'#e91e8c' },
-  '개인작품':      { grad:'linear-gradient(135deg,rgba(0,212,255,0.15),rgba(233,30,140,0.12))', accent:'#00d4ff' }
+  '개인작품':      { grad:'linear-gradient(135deg,rgba(0,212,255,0.15),rgba(233,30,140,0.12))',accent:'#00d4ff' }
 };
 var CAT_ORDER = ['디자인융합수업','드로잉/조형','컴퓨터그래픽','캐릭터디자인','모션그래픽','개인작품'];
-var GALLERY_DATA = []; 
-var AWARD_DATA_LIVE = [];
+
+var GALLERY_DATA = [];
+var AWARD_DATA   = [];
 var gCat = 0, gSlide = 0, awardFilter = '전체';
 
-// ════════════════════════════════════════
-// 1. 초기 UI 실행 (로더, 커서, 파티클)
-// ════════════════════════════════════════
-function initUI() {
-  // 로더
-  var bar = document.getElementById('loaderBar');
-  var numEl = document.getElementById('loaderNum');
-  var pct = 0;
-  var iv = setInterval(function() {
-    pct += Math.floor(Math.random() * 10) + 5;
-    if (pct >= 100) {
-      pct = 100; clearInterval(iv);
-      setTimeout(function() { document.getElementById('loader').classList.add('hidden'); }, 400);
-    }
-    if(bar) bar.style.width = pct + '%';
-    if(numEl) numEl.innerHTML = pct;
-  }, 50);
+// ════════════════════════════════════════════════
+// 이미지 URL 변환 — wsrv.nl 프록시로 iOS 우회
+// ════════════════════════════════════════════════
+function convertImgUrl(url) {
+  if (!url) return '';
+  url = url.toString().trim();
+  if (url.indexOf('drive.google.com') === -1) return url;
 
-  // 커서 (터치 기기 예외처리)
-  if (!('ontouchstart' in window)) {
-    var cursor = document.getElementById('cursor');
-    var ring = document.getElementById('cursor-ring');
-    document.addEventListener('mousemove', function(e) {
-      if (cursor) { cursor.style.left = e.clientX+'px'; cursor.style.top = e.clientY+'px'; }
-      if (ring) setTimeout(function(){ ring.style.left = e.clientX+'px'; ring.style.top = e.clientY+'px'; }, 80);
-    });
+  // fileId 추출 (정규식 — 25자 이상 영문숫자_-)
+  var fid = '';
+  var m = url.match(/\/d\/([-\w]{25,})/);
+  if (m) {
+    fid = m[1];
   } else {
+    m = url.match(/[?&]id=([-\w]{25,})/);
+    if (m) fid = m[1];
+  }
+  if (!fid) return url;
+
+  // wsrv.nl 프록시 — iOS Safari CORS 우회
+  return 'https://wsrv.nl/?url=drive.google.com/uc%3Fexport%3Dview%26id%3D' + fid + '&w=1200&output=jpg';
+}
+
+// ════════════════════════════════════════════════
+// 로더
+// ════════════════════════════════════════════════
+function startLoader() {
+  var bar   = document.getElementById('loaderBar');
+  var numEl = document.getElementById('loaderNum');
+  var textEl = document.getElementById('loaderText');
+  var msgs  = ['INITIALIZING...','LOADING ASSETS...','RENDERING SCENE...','ALMOST READY...'];
+  var pct   = 0;
+  var iv    = setInterval(function() {
+    pct += Math.floor(Math.random() * 8) + 3;
+    if (pct >= 100) { pct = 100; clearInterval(iv); }
+    if (bar)   bar.style.width = pct + '%';
+    if (numEl) numEl.innerHTML = pct;
+    if (textEl) textEl.innerHTML = msgs[Math.min(3, Math.floor(pct/25))];
+    if (pct >= 100) setTimeout(function() {
+      var loader = document.getElementById('loader');
+      if (loader) loader.classList.add('hidden');
+    }, 400);
+  }, 55);
+}
+
+// ════════════════════════════════════════════════
+// 커서 (데스크탑만)
+// ════════════════════════════════════════════════
+function initCursor() {
+  if ('ontouchstart' in window) {
     document.body.style.cursor = 'auto';
+    var c = document.getElementById('cursor');
+    var r = document.getElementById('cursor-ring');
+    if (c) c.style.display = 'none';
+    if (r) r.style.display = 'none';
+    return;
+  }
+  var cursor = document.getElementById('cursor');
+  var ring   = document.getElementById('cursor-ring');
+  document.addEventListener('mousemove', function(e) {
+    if (cursor) { cursor.style.left = e.clientX+'px'; cursor.style.top = e.clientY+'px'; }
+    if (ring) setTimeout(function(){ ring.style.left = e.clientX+'px'; ring.style.top = e.clientY+'px'; }, 80);
+  });
+}
+
+// ════════════════════════════════════════════════
+// 파티클
+// ════════════════════════════════════════════════
+function initParticles() {
+  var container = document.getElementById('particles');
+  if (!container) return;
+  var colors = ['#e91e8c','#00d4ff','#ffe566','#a855f7'];
+  for (var i = 0; i < 28; i++) {
+    var p = document.createElement('div');
+    p.className = 'particle';
+    var s = 1 + Math.random() * 3;
+    p.style.cssText = 'left:'+Math.random()*100+'%;'
+      +'--dx:'+((Math.random()-0.5)*200)+'px;'
+      +'animation-duration:'+(8+Math.random()*12)+'s;'
+      +'animation-delay:'+Math.random()*10+'s;'
+      +'background:'+colors[Math.floor(Math.random()*colors.length)]+';'
+      +'width:'+s+'px;height:'+s+'px;box-shadow:0 0 6px currentColor;';
+    container.appendChild(p);
   }
 }
 
-// ════════════════════════════════════════
-// 2. 데이터 처리 및 렌더링
-// ════════════════════════════════════════
-function processSheetData(rows) {
+// ════════════════════════════════════════════════
+// 갤러리 — 데이터 처리
+// ════════════════════════════════════════════════
+function processGallery(rows) {
   var map = {};
   for (var i = 0; i < rows.length; i++) {
-    var r = rows[i];
+    var r   = rows[i];
     var cat = (r['카테고리'] || '').toString().trim();
-    if (!cat || r['공개여부'] === '비공개') continue;
-    
-    var img = (r['이미지URL'] || '').toString().trim();
-    if (img.indexOf('drive.google.com') !== -1) {
-      var fid = img.match(/[-\w]{25,}/);
-      if (fid) img = 'https://lh3.googleusercontent.com/d/' + fid[0] + '=w1200';
-    }
-    
+    var pub = (r['공개여부'] || '공개').toString().trim();
+    var title = (r['작품제목'] || '').toString().trim();
+    if (!cat || !title || pub === '비공개') continue;
+
+    var img   = convertImgUrl(r['이미지URL'] || '');
+    var grade = (r['학년'] || '').toString().trim();
+    var desc  = (r['작품설명'] || '').toString().trim();
+    var stu   = (r['학생이름'] || '').toString().trim();
+    var sub   = grade && desc ? grade + ' · ' + desc : (grade || desc || title);
+
     if (!map[cat]) map[cat] = [];
-    map[cat].push({ 
-      title: r['작품제목'] || 'Untitled', 
-      sub: (r['학년'] || '') + ' ' + (r['작품설명'] || ''), 
-      img: img, 
-      student: r['학생이름'] || '' 
-    });
+    map[cat].push({ title:title, sub:sub, img:img, student:stu });
   }
 
-  var finalData = [];
+  var result = [];
   for (var j = 0; j < CAT_ORDER.length; j++) {
-    var cName = CAT_ORDER[j];
-    if (map[cName]) {
-      var s = CAT_STYLES[cName] || {};
-      finalData.push({ cat: cName, slides: map[cName], grad: s.grad, accent: s.accent });
+    var c = CAT_ORDER[j];
+    if (map[c] && map[c].length > 0) {
+      var st = CAT_STYLES[c] || { grad:'linear-gradient(135deg,rgba(0,212,255,0.2),rgba(0,100,180,0.1))', accent:'#00d4ff' };
+      result.push({ cat:c, grad:st.grad, accent:st.accent, slides:map[c] });
     }
   }
-  return finalData;
+  return result;
 }
 
+// ════════════════════════════════════════════════
+// 갤러리 — 렌더링
+// ════════════════════════════════════════════════
 function buildGallery() {
   var menu = document.getElementById('galleryMenu');
   if (!menu || GALLERY_DATA.length === 0) return;
-  var html = '';
+  menu.innerHTML = '';
   for (var i = 0; i < GALLERY_DATA.length; i++) {
-    var cat = GALLERY_DATA[i];
-    html += '<div class="gallery-menu-item' + (i===gCat?' active':'') + '" onclick="switchCat('+i+')">' +
-            '<div class="menu-bg" style="background:'+cat.grad+'"></div>' +
-            '<div class="menu-content"><div class="menu-label">'+cat.cat+'</div></div></div>';
+    var cat  = GALLERY_DATA[i];
+    var item = document.createElement('div');
+    item.className = 'gallery-menu-item' + (i === gCat ? ' active' : '');
+    item.setAttribute('data-idx', i);
+    item.innerHTML =
+      '<div class="menu-bg" style="background:'+cat.grad+'"></div>'+
+      '<div class="menu-content">'+
+        '<div class="menu-num">CAT · 0'+(i+1)+'</div>'+
+        '<div class="menu-label">'+cat.cat+'</div>'+
+        '<div class="menu-count">'+cat.slides.length+'개 작품</div>'+
+      '</div>'+
+      '<div class="menu-bar"></div>';
+    (function(idx){ item.addEventListener('click', function(){ switchCat(idx); }); })(i);
+    menu.appendChild(item);
   }
-  menu.innerHTML = html;
   renderSlides();
 }
 
 function renderSlides() {
-  var cat = GALLERY_DATA[gCat];
+  var cat   = GALLERY_DATA[gCat];
   var track = document.getElementById('viewerTrack');
+  var dots  = document.getElementById('viewerDots');
+  var total = document.getElementById('viewerTotal');
   if (!track || !cat) return;
-  var trackHtml = '';
+
+  track.innerHTML = '';
   for (var i = 0; i < cat.slides.length; i++) {
-    var sl = cat.slides[i];
-    trackHtml += '<div class="viewer-slide"><img class="viewer-slide-img" src="'+sl.img+'" loading="lazy">' +
-                 '<div class="viewer-info"><div class="viewer-title">'+sl.title+'</div>' +
-                 '<div class="viewer-desc">'+sl.sub+' · '+sl.student+'</div></div></div>';
+    var sl    = cat.slides[i];
+    var slide = document.createElement('div');
+    slide.className = 'viewer-slide';
+    // 이미지 있으면 img, onerror로 그라디언트 fallback
+    var content = sl.img
+      ? '<img class="viewer-slide-img" src="'+sl.img+'" alt="'+sl.title+'" onerror="this.onerror=null;this.style.display=\'none\'">'
+        + '<div class="viewer-slide-bg" style="background:'+cat.grad+'"></div>'
+      : '<div class="viewer-slide-bg" style="background:'+cat.grad+'"></div>';
+    slide.innerHTML = content +
+      '<div class="viewer-info">'+
+        '<div class="viewer-category">◈ '+cat.cat+'</div>'+
+        '<div class="viewer-title">'+sl.title+'</div>'+
+        '<div class="viewer-desc">'+sl.sub+(sl.student?' · '+sl.student:'')+'</div>'+
+      '</div>';
+    track.appendChild(slide);
   }
-  track.innerHTML = trackHtml;
-  document.getElementById('viewerTotal').innerHTML = cat.slides.length;
+
+  if (dots) {
+    dots.innerHTML = '';
+    for (var d = 0; d < cat.slides.length; d++) {
+      var dot = document.createElement('div');
+      dot.className = 'viewer-dot' + (d === 0 ? ' active' : '');
+      (function(di){ dot.addEventListener('click', function(){ goSlide(di); }); })(d);
+      dots.appendChild(dot);
+    }
+  }
+  if (total) total.innerHTML = cat.slides.length;
   goSlide(0, false);
 }
 
@@ -1856,103 +1946,274 @@ function goSlide(idx, animate) {
   var track = document.getElementById('viewerTrack');
   if (!track || !GALLERY_DATA[gCat]) return;
   gSlide = Math.max(0, Math.min(idx, GALLERY_DATA[gCat].slides.length - 1));
-  track.style.transition = (animate !== false) ? 'transform 0.5s ease' : 'none';
+  track.style.transition = (animate === false) ? 'none' : 'transform 0.5s ease';
+  // translate3d — GPU 가속으로 iOS 부드럽게
   track.style.transform = 'translate3d(-' + (gSlide * 100) + '%, 0, 0)';
-  document.getElementById('viewerCur').innerHTML = gSlide + 1;
+  if (animate === false) setTimeout(function(){ track.style.transition = 'transform 0.5s ease'; }, 50);
+  var cur = document.getElementById('viewerCur');
+  if (cur) cur.innerHTML = gSlide + 1;
+  var dotEls = document.querySelectorAll('.viewer-dot');
+  for (var i = 0; i < dotEls.length; i++) dotEls[i].classList.toggle('active', i === gSlide);
 }
 
-function switchCat(ci) { gCat = ci; gSlide = 0; buildGallery(); }
+function galleryPrev() { goSlide(gSlide - 1); }
+function galleryNext() { goSlide(gSlide + 1); }
 
-// ════════════════════════════════════════
-// 3. 메인 엔진 (실행 순서 제어)
-// ════════════════════════════════════════
-async function startApp() {
-  initUI(); // UI 먼저 띄우고
-  
-  try {
-    var response = await fetch(APPS_SCRIPT_URL);
-    var data = await response.json();
-    
-    if (data.gallery) {
-      GALLERY_DATA = processSheetData(data.gallery);
-      buildGallery();
-      // 데이터 로드 후에만 Total Works 숫자 업데이트
-      var totalWorks = 0;
-      for(var i=0; i<GALLERY_DATA.length; i++) totalWorks += GALLERY_DATA[i].slides.length;
-      document.querySelector('[data-target="127"]').setAttribute('data-target', totalWorks);
-    }
-    
-    if (data.award) {
-      AWARD_DATA_LIVE = data.award;
-      renderAwards();
-    }
-    
-    initAnimations(); // 모든 데이터 로드 후 애니메이션 시작
-    
-  } catch (e) {
-    console.error("Critical Error:", e);
-    // 실패해도 화면은 나오게 fallback
-    document.getElementById('loader').classList.add('hidden');
+function switchCat(ci) {
+  if (ci === gCat) return;
+  gCat = ci; gSlide = 0;
+  var items = document.querySelectorAll('.gallery-menu-item');
+  for (var i = 0; i < items.length; i++) items[i].classList.toggle('active', i === ci);
+  renderSlides();
+}
+
+// 터치 스와이프
+function initSwipe() {
+  var viewer = document.getElementById('gallery');
+  if (!viewer) return;
+  var startX = 0;
+  viewer.addEventListener('touchstart', function(e){ startX = e.touches[0].clientX; }, {passive:true});
+  viewer.addEventListener('touchend',   function(e){
+    var dx = e.changedTouches[0].clientX - startX;
+    if (Math.abs(dx) > 50) { if (dx < 0) galleryNext(); else galleryPrev(); }
+  });
+}
+
+// ════════════════════════════════════════════════
+// 수상 렌더링
+// ════════════════════════════════════════════════
+var RANK_COLORS = {
+  '대상':'#00d4ff','금상':'#00d4ff','최우수상':'#00d4ff','우수상':'#00d4ff',
+  '장려상':'#e91e8c','교장상':'#e91e8c','특별상':'#e91e8c','입선':'#6060a0'
+};
+
+function renderAwards() {
+  var grid = document.getElementById('awardGrid');
+  if (!grid) return;
+  var list = (awardFilter === '전체')
+    ? AWARD_DATA
+    : AWARD_DATA.filter(function(a){ return (a['교내외']||'') === awardFilter; });
+
+  if (list.length === 0) {
+    grid.innerHTML = '<div class="award-empty">해당 수상 내역이 없습니다.</div>';
+    return;
+  }
+  grid.innerHTML = '';
+  for (var i = 0; i < list.length; i++) {
+    var a     = list[i];
+    var color = RANK_COLORS[a['수상등급']] || 'var(--accent3)';
+    var tags  = (a['태그'] || '').split(',').map(function(t){ return t.trim(); }).filter(Boolean);
+    var card  = document.createElement('div');
+    card.className = 'award-card';
+    card.style.cssText = '--award-color:'+color+';animation-delay:'+(i*0.07)+'s';
+    card.innerHTML =
+      '<div class="award-card-inner">'+
+        '<div class="award-rank"><span class="award-rank-icon">◈</span>'+(a['수상등급']||'')+'</div>'+
+        '<div class="award-title">'+(a['공모전명']||a['수상명']||'')+'</div>'+
+        '<div class="award-student"><strong>'+(a['학생이름']||'')+'</strong> · '+(a['학년']||'')+' · '+(a['수상연도']||'')+'</div>'+
+        '<div class="award-meta">'+
+          '<span class="award-tag type-'+((a['교내외']==='교외')?'out':'in')+'">'+(a['교내외']||'교외')+'</span>'+
+          tags.map(function(t){ return '<span class="award-tag">'+t+'</span>'; }).join('')+
+        '</div>'+
+      '</div>';
+    grid.appendChild(card);
   }
 }
 
-function initAnimations() {
-  // 스크롤 리빌
-  var obs = new IntersectionObserver(function(es) {
-    es.forEach(function(e) { if(e.isIntersecting) e.target.classList.add('visible'); });
-  }, { threshold: 0.1 });
-  document.querySelectorAll('.reveal').forEach(function(el) { obs.observe(el); });
+function filterAward(type, btn) {
+  awardFilter = type;
+  var btns = document.querySelectorAll('.award-filter-btn');
+  for (var i = 0; i < btns.length; i++) btns[i].classList.remove('active');
+  if (btn) btn.classList.add('active');
+  renderAwards();
+}
 
-  // 숫자 카운터 애니메이션
+// ════════════════════════════════════════════════
+// 커리큘럼
+// ════════════════════════════════════════════════
+function switchGrade(idx) {
+  var tabs   = document.querySelectorAll('.cur-tab');
+  var panels = document.querySelectorAll('.cur-panel');
+  for (var i = 0; i < tabs.length; i++) {
+    tabs[i].classList.toggle('active', i === idx);
+    if (panels[i]) panels[i].classList.toggle('active', i === idx);
+  }
+  animateCurBars(document.getElementById('cur-panel-'+idx));
+}
+function toggleCurSubject(el) { el.classList.toggle('open'); }
+function animateCurBars(panel) {
+  if (!panel) return;
+  var bars = panel.querySelectorAll('.cur-bar-fill');
+  for (var i = 0; i < bars.length; i++) {
+    bars[i].style.width = '0%';
+    (function(bar){ setTimeout(function(){ bar.style.width = bar.dataset.val + '%'; }, 100); })(bars[i]);
+  }
+}
+
+// ════════════════════════════════════════════════
+// 방과후 아코디언 (모바일) + 패널 전환 (데스크탑)
+// ════════════════════════════════════════════════
+var progData = [
+  { num:'PROG · 01', title:'GTQ 그래픽 자격검정',   desc:'포토샵을 활용한 GTQ 자격증 취득을 위한 전문 수업입니다.', tags:['Photoshop','GTQ 1급·2급','자격증'] },
+  { num:'PROG · 02', title:'드로잉 기초',             desc:'인체 크로키, 정물 드로잉 등 기초 드로잉 실력을 향상시킵니다.', tags:['크로키','인체드로잉','투시도법'] },
+  { num:'PROG · 03', title:'컴퓨터그래픽스 준비반',  desc:'컴퓨터그래픽스운용기능사 자격증 취득을 위한 집중 수업입니다.', tags:['Illustrator','Photoshop','기능사'] },
+  { num:'PROG · 04', title:'포트폴리오 준비반',       desc:'대학 입시를 위한 포트폴리오를 체계적으로 완성합니다.', tags:['입시포트폴리오','진로맞춤','피드백'] },
+  { num:'PROG · 05', title:'융합콘텐츠 개발',         desc:'영상·모션·AR 등 다양한 디지털 미디어 콘텐츠를 제작합니다.', tags:['모션그래픽','영상편집','AR'] },
+  { num:'PROG · 06', title:'생성형 AI 연구회',        desc:'Midjourney 등 AI 이미지 생성 도구를 디자인에 활용합니다.', tags:['Midjourney','AI디자인','프롬프트'] },
+];
+
+function initAfterSchool() {
+  var items = document.querySelectorAll('#asList .as-list-item');
+  if (!items.length) return;
+
+  function isMobile() { return window.innerWidth <= 900; }
+
+  // 아코디언 패널 생성 (모바일용)
+  for (var i = 0; i < items.length; i++) {
+    var d   = progData[i] || {};
+    var acc = document.createElement('div');
+    acc.className = 'as-accordion-panel';
+    acc.dataset.accIdx = i;
+    acc.innerHTML =
+      '<div class="as-accordion-inner">'+
+        '<div class="as-accordion-num">'+(d.num||'')+'</div>'+
+        '<div class="as-accordion-title">'+(d.title||'')+'</div>'+
+        '<div class="as-accordion-desc">'+(d.desc||'')+'</div>'+
+        '<div class="as-accordion-tags">'+
+          (d.tags||[]).map(function(t){ return '<span class="as-accordion-tag">'+t+'</span>'; }).join('')+
+        '</div>'+
+      '</div>';
+    items[i].insertAdjacentElement('afterend', acc);
+  }
+
+  var panels = document.querySelectorAll('#asDetail .as-panel');
+  var currentIdx = 0;
+
+  function activate(idx) {
+    if (isMobile()) {
+      var accs = document.querySelectorAll('.as-accordion-panel');
+      var isOpen = accs[idx] && accs[idx].classList.contains('as-open');
+      for (var i = 0; i < items.length; i++) items[i].classList.remove('as-active');
+      for (var j = 0; j < accs.length; j++) accs[j].classList.remove('as-open');
+      if (!isOpen) {
+        items[idx].classList.add('as-active');
+        if (accs[idx]) accs[idx].classList.add('as-open');
+        currentIdx = idx;
+      }
+    } else {
+      currentIdx = idx;
+      for (var i = 0; i < items.length; i++) items[i].classList.toggle('as-active', i === idx);
+      for (var j = 0; j < panels.length; j++) panels[j].classList.toggle('as-active', j === idx);
+    }
+  }
+
+  for (var k = 0; k < items.length; k++) {
+    (function(idx){
+      items[idx].addEventListener('click', function(){ activate(idx); });
+      items[idx].addEventListener('mouseenter', function(){ if (!isMobile()) activate(idx); });
+    })(k);
+  }
+
+  if (!isMobile() && panels.length > 0) activate(0);
+
+  window.addEventListener('resize', function(){
+    var accs = document.querySelectorAll('.as-accordion-panel');
+    if (!isMobile()) {
+      for (var i = 0; i < accs.length; i++) accs[i].classList.remove('as-open');
+      for (var i = 0; i < items.length; i++) items[i].classList.toggle('as-active', i === currentIdx);
+      for (var i = 0; i < panels.length; i++) panels[i].classList.toggle('as-active', i === currentIdx);
+    }
+  });
+}
+
+// ════════════════════════════════════════════════
+// 동아리 카드 마우스 글로우
+// ════════════════════════════════════════════════
+function initClubCards() {
+  var cards = document.querySelectorAll('.club-card');
+  for (var i = 0; i < cards.length; i++) {
+    (function(card){
+      card.addEventListener('mousemove', function(e) {
+        var rect = card.getBoundingClientRect();
+        card.style.setProperty('--mx', ((e.clientX - rect.left) / rect.width * 100).toFixed(1) + '%');
+        card.style.setProperty('--my', ((e.clientY - rect.top) / rect.height * 100).toFixed(1) + '%');
+      });
+    })(cards[i]);
+  }
+}
+
+// ════════════════════════════════════════════════
+// 스크롤 리빌 & 카운터
+// ════════════════════════════════════════════════
+function initScrollEffects() {
+  var obs = new IntersectionObserver(function(es) {
+    es.forEach(function(e){ if (e.isIntersecting) e.target.classList.add('visible'); });
+  }, { threshold:0.1, rootMargin:'0px 0px -50px 0px' });
+  document.querySelectorAll('.reveal').forEach(function(el){ obs.observe(el); });
+
   var statsObs = new IntersectionObserver(function(es) {
-    es.forEach(function(e) {
+    es.forEach(function(e){
       if (e.isIntersecting) {
-        document.querySelectorAll('[data-target]').forEach(function(el) {
+        document.querySelectorAll('[data-target]').forEach(function(el){
           var target = parseInt(el.getAttribute('data-target'));
-          var cur = 0, step = target / 50;
-          var iv = setInterval(function() {
+          var cur = 0, step = target / 60;
+          var iv = setInterval(function(){
             cur += step;
-            if (cur >= target) { cur = target; clearInterval(iv); }
+            if (cur >= target){ cur = target; clearInterval(iv); }
             el.innerHTML = Math.floor(cur);
-          }, 30);
+          }, 20);
         });
         statsObs.disconnect();
       }
     });
-  }, { threshold: 0.5 });
+  }, { threshold:0.5 });
   var sb = document.querySelector('.stats-bar');
   if (sb) statsObs.observe(sb);
 }
 
-// ════════════════════════════════════════
-// 4. 기타 기능
-// ════════════════════════════════════════
-function renderAwards() {
-  var grid = document.getElementById('awardGrid');
-  if (!grid) return;
-  var list = (awardFilter === '전체') ? AWARD_DATA_LIVE : AWARD_DATA_LIVE.filter(function(a){ return a['교내외'] === awardFilter; });
-  var html = '';
-  for (var i = 0; i < list.length; i++) {
-    var a = list[i];
-    html += '<div class="award-card"><div class="award-card-inner">' +
-            '<div class="award-rank">◈ ' + (a['수상등급'] || '본상') + '</div>' +
-            '<div class="award-title">' + (a['공모전명'] || a['수상명']) + '</div>' +
-            '<div class="award-student">' + a['학생이름'] + '</div></div></div>';
-  }
-  grid.innerHTML = html || '<div class="award-empty">내역이 없습니다.</div>';
+// ════════════════════════════════════════════════
+// TOP 버튼
+// ════════════════════════════════════════════════
+function initTopBtn() {
+  var btn = document.getElementById('topBtn');
+  if (!btn) return;
+  window.addEventListener('scroll', function(){
+    btn.classList.toggle('visible', window.scrollY > 400);
+  });
 }
 
-function switchGrade(idx) {
-  var tabs = document.querySelectorAll('.cur-tab'), panels = document.querySelectorAll('.cur-panel');
-  for(var i=0; i<tabs.length; i++) {
-    tabs[i].classList.toggle('active', i === idx);
-    panels[i].classList.toggle('active', i === idx);
-  }
-}
-function toggleCurSubject(el) { el.classList.toggle('open'); }
+// ════════════════════════════════════════════════
+// 메인 실행
+// ════════════════════════════════════════════════
+window.addEventListener('load', function() {
+  startLoader();
+  initCursor();
+  initParticles();
+  initAfterSchool();
+  initClubCards();
+  initScrollEffects();
+  initTopBtn();
+  initSwipe();
+  setTimeout(function(){ animateCurBars(document.getElementById('cur-panel-0')); }, 800);
 
-// 진짜 시작
-window.onload = startApp;
+  // 시트 데이터 로드
+  fetch(APPS_SCRIPT_URL)
+    .then(function(r){ return r.json(); })
+    .then(function(data) {
+      if (data.gallery && data.gallery.length > 0) {
+        GALLERY_DATA = processGallery(data.gallery);
+        buildGallery();
+      }
+      if (data.award && data.award.length > 0) {
+        AWARD_DATA = data.award;
+        renderAwards();
+      }
+    })
+    .catch(function(e){
+      console.warn('시트 연결 실패:', e);
+      document.getElementById('loader') && document.getElementById('loader').classList.add('hidden');
+    });
+});
 </script>
 </body>
 </html>
