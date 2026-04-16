@@ -1739,47 +1739,7 @@
 
 <script>
 // ════════════════════════════════════════
-// 0. 로더
-// ════════════════════════════════════════
-(function() {
-  const loader = document.getElementById('loader');
-  const bar    = document.getElementById('loaderBar');
-  const numEl  = document.getElementById('loaderNum');
-  const textEl = document.getElementById('loaderText');
-  const msgs   = ['INITIALIZING...','LOADING ASSETS...','RENDERING SCENE...','ALMOST READY...'];
-  let pct = 0;
-  const iv = setInterval(() => {
-    pct += Math.random() * 7 + 2;
-    if (pct >= 100) { pct = 100; clearInterval(iv); }
-    bar.style.width   = pct + '%';
-    numEl.textContent = Math.floor(pct);
-    textEl.textContent = msgs[Math.min(3, Math.floor(pct / 25))];
-    if (pct >= 100) setTimeout(() => loader.classList.add('hidden'), 400);
-  }, 55);
-})();
-
-// ════════════════════════════════════════
-// 1. 커서 및 기본 설정
-// ════════════════════════════════════════
-const cursor = document.getElementById('cursor');
-const ring   = document.getElementById('cursor-ring');
-
-function cursorOn() {
-  if (cursor) { cursor.style.transform='translate(-50%,-50%) scale(2)'; cursor.style.background='#00d4ff'; }
-  if (ring)   { ring.style.transform='translate(-50%,-50%) scale(1.5)'; }
-}
-function cursorOff() {
-  if (cursor) { cursor.style.transform='translate(-50%,-50%) scale(1)'; cursor.style.background='#e91e8c'; }
-  if (ring)   { ring.style.transform='translate(-50%,-50%) scale(1)'; }
-}
-
-document.addEventListener('mousemove', e => {
-  if (cursor) { cursor.style.left = e.clientX+'px'; cursor.style.top = e.clientY+'px'; }
-  if (ring)   setTimeout(() => { ring.style.left = e.clientX+'px'; ring.style.top = e.clientY+'px'; }, 80);
-});
-
-// ════════════════════════════════════════
-// 2. 파티클 및 갤러리 설정
+// 0. 로딩 및 전역 설정
 // ════════════════════════════════════════
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw2Iq9vhFc5wcKCwmweFOQBy2rKnG-5AF-JEZB6p8htnLzxzPySQA_gGKOyJ9LI-DR7/exec';
 const CAT_STYLES = {
@@ -1793,68 +1753,66 @@ const CAT_STYLES = {
 const CAT_ORDER = ['디자인융합수업','드로잉/조형','컴퓨터그래픽','캐릭터디자인','모션그래픽','개인작품'];
 
 let GALLERY_DATA = []; 
-let gCat = 0, gSlide = 0;
 let AWARD_DATA_LIVE = [];
-let awardFilter = '전체';
+let gCat = 0, gSlide = 0, awardFilter = '전체';
+
+// 로더 실행
+(function initLoader() {
+  const loader = document.getElementById('loader');
+  const bar = document.getElementById('loaderBar');
+  const numEl = document.getElementById('loaderNum');
+  let pct = 0;
+  const iv = setInterval(() => {
+    pct += Math.random() * 10 + 5;
+    if (pct >= 100) { pct = 100; clearInterval(iv); setTimeout(() => loader.classList.add('hidden'), 500); }
+    if(bar) bar.style.width = pct + '%';
+    if(numEl) numEl.textContent = Math.floor(pct);
+  }, 60);
+})();
 
 // ════════════════════════════════════════
-// 3. 핵심 로직: 시트 데이터 변환 (아이패드 호환 최적화)
+// 1. 데이터 처리 로직 (핵심)
 // ════════════════════════════════════════
 function sheetToGallery(rows) {
   var map = {};
   rows.forEach(function(row) {
     var cat = String(row['카테고리'] || '').trim();
     var title = String(row['작품제목'] || '').trim();
-    var pub = String(row['공개여부'] || '공개').trim();
-    if (!cat || !title || pub === '비공개') return;
+    if (!cat || !title || row['공개여부'] === '비공개') return;
 
     var img = String(row['이미지URL'] || '').trim();
     if (img.indexOf('drive.google.com') !== -1) {
-      var fid = '';
-      if (img.indexOf('/d/') !== -1) fid = img.split('/d/')[1].split('/')[0];
-      else if (img.indexOf('id=') !== -1) fid = img.split('id=')[1].split('&')[0];
+      var fid = img.match(/[-\w]{25,}/); // 드라이브 ID 추출 정규식
       if (fid) {
         var imgWidth = window.innerWidth < 768 ? 'w800' : 'w1200';
         img = 'https://lh3.googleusercontent.com/d/' + fid + '=' + imgWidth;
       }
     }
-    var grade = String(row['학년'] || '').trim();
-    var desc = String(row['작품설명'] || '').trim();
-    var stu = String(row['학생이름'] || '').trim();
-    var sub = (grade && desc) ? (grade + ' · ' + desc) : (grade || desc || title);
+    
+    var sub = (row['학년'] && row['작품설명']) ? (row['학년'] + ' · ' + row['작품설명']) : (row['학년'] || row['작품설명'] || '');
     if (!map[cat]) map[cat] = [];
-    map[cat].push({ title: title, sub: sub, img: img, student: stu });
+    map[cat].push({ title: title, sub: sub, img: img, student: row['학생이름'] || '' });
   });
 
   var finalData = [];
-  for (var i = 0; i < CAT_ORDER.length; i++) {
-    var cName = CAT_ORDER[i];
+  CAT_ORDER.forEach(cName => {
     if (map[cName] && map[cName].length > 0) {
-      var obj = { cat: cName, desc: '', slides: map[cName] };
-      var style = CAT_STYLES[cName] || {};
-      for (var key in style) { obj[key] = style[key]; }
+      var obj = Object.assign({ cat: cName, desc: '', slides: map[cName] }, CAT_STYLES[cName]);
       finalData.push(obj);
     }
-  }
+  });
   return finalData;
 }
 
 function sheetToAward(rows) {
-  return rows.filter(r => String(r['수상명']||'').trim() && String(r['공개여부']||'공개').trim() !== '비공개')
-    .map(r => ({
-      rank: String(r['수상등급'] || '').trim(),
-      icon: '◈',
-      title: String(r['공모전명'] || '').trim(),
-      student: String(r['학생이름'] || '').trim(),
-      grade: String(r['학년'] || '').trim(),
-      year: String(r['수상연도'] || '').trim(),
-      type: String(r['교내외'] || '교외').trim(),
-      tags: String(r['태그'] || '').split(',').map(t=>t.trim()).filter(Boolean),
-    }));
+  return rows.filter(r => r['수상명'] && r['공개여부'] !== '비공개').map(r => ({
+    rank: r['수상등급'], title: r['공모전명'], student: r['학생이름'],
+    grade: r['학년'], year: r['수상연도'], type: r['교내외'] || '교외', tags: (r['태그']||'').split(',').filter(Boolean)
+  }));
 }
 
 // ════════════════════════════════════════
-// 4. 렌더링 함수 (빌드 및 슬라이드 제어)
+// 2. 화면 렌더링 함수
 // ════════════════════════════════════════
 function buildGallery() {
   const menu = document.getElementById('galleryMenu');
@@ -1864,11 +1822,7 @@ function buildGallery() {
     const item = document.createElement('div');
     item.className = 'gallery-menu-item' + (ci === 0 ? ' active' : '');
     item.innerHTML = `<div class="menu-bg" style="background:${cat.grad}"></div>
-      <div class="menu-content">
-        <div class="menu-num">CAT · 0${ci+1}</div>
-        <div class="menu-label">${cat.cat}</div>
-        <div class="menu-count">${cat.slides.length}개 작품</div>
-      </div><div class="menu-bar"></div>`;
+      <div class="menu-content"><div class="menu-num">CAT · 0${ci+1}</div><div class="menu-label">${cat.cat}</div></div>`;
     item.onclick = () => switchCat(ci);
     menu.appendChild(item);
   });
@@ -1879,18 +1833,14 @@ function renderSlides() {
   const cat = GALLERY_DATA[gCat];
   const track = document.getElementById('viewerTrack');
   const dots = document.getElementById('viewerDots');
-  const total = document.getElementById('viewerTotal');
   if (!track || !cat) return;
   track.innerHTML = '';
   cat.slides.forEach(sl => {
     const slide = document.createElement('div');
     slide.className = 'viewer-slide';
-    slide.innerHTML = `<img class="viewer-slide-img" src="${sl.img}" onerror="this.src='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='">
-      <div class="viewer-info">
-        <div class="viewer-category">◈ ${cat.cat}</div>
-        <div class="viewer-title">${sl.title}</div>
-        <div class="viewer-desc">${sl.sub}${sl.student ? ' · '+sl.student : ''}</div>
-      </div>`;
+    slide.innerHTML = `<img class="viewer-slide-img" src="${sl.img}" loading="lazy"><div class="viewer-info">
+      <div class="viewer-category">◈ ${cat.cat}</div><div class="viewer-title">${sl.title}</div>
+      <div class="viewer-desc">${sl.sub} · ${sl.student}</div></div>`;
     track.appendChild(slide);
   });
   dots.innerHTML = '';
@@ -1900,58 +1850,34 @@ function renderSlides() {
     dot.onclick = () => goSlide(si);
     dots.appendChild(dot);
   });
-  total.textContent = cat.slides.length;
+  document.getElementById('viewerTotal').textContent = cat.slides.length;
   goSlide(0, false);
 }
 
 function goSlide(idx, animate = true) {
-  const cat = GALLERY_DATA[gCat];
-  if(!cat) return;
-  gSlide = Math.max(0, Math.min(idx, cat.slides.length - 1));
   const track = document.getElementById('viewerTrack');
-  if (!track) return;
-  track.style.transition = animate ? 'transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94)' : 'none';
+  if (!track || !GALLERY_DATA[gCat]) return;
+  gSlide = Math.max(0, Math.min(idx, GALLERY_DATA[gCat].slides.length - 1));
+  track.style.transition = animate ? 'transform 0.5s ease' : 'none';
   track.style.transform = `translate3d(-${gSlide * 100}%, 0, 0)`;
-  if (!animate) { track.offsetHeight; }
   document.getElementById('viewerCur').textContent = gSlide + 1;
   document.querySelectorAll('.viewer-dot').forEach((d, i) => d.classList.toggle('active', i === gSlide));
 }
 
 function galleryPrev() { goSlide(gSlide - 1); }
 function galleryNext() { goSlide(gSlide + 1); }
-function switchCat(ci) { gCat = ci; gSlide = 0; 
-  document.querySelectorAll('.gallery-menu-item').forEach((el,i) => el.classList.toggle('active', i===ci));
-  renderSlides(); 
-}
-
-// ════════════════════════════════════════
-// 5. 데이터 로드 및 초기화
-// ════════════════════════════════════════
-async function loadSheetData() {
-  try {
-    const res = await fetch(APPS_SCRIPT_URL, { redirect:'follow' });
-    const json = await res.json();
-    if (json.gallery) GALLERY_DATA = sheetToGallery(json.gallery);
-    if (json.award) AWARD_DATA_LIVE = sheetToAward(json.award);
-  } catch(e) { console.error('Data Load Error:', e); }
-  buildGallery();
-  renderAwards();
-}
+function switchCat(ci) { gCat = ci; gSlide = 0; buildGallery(); }
 
 function renderAwards() {
   const grid = document.getElementById('awardGrid');
-  if (!grid || AWARD_DATA_LIVE.length === 0) return;
-  grid.innerHTML = '';
+  if (!grid) return;
   const list = awardFilter === '전체' ? AWARD_DATA_LIVE : AWARD_DATA_LIVE.filter(a => a.type === awardFilter);
-  list.forEach((a, i) => {
+  grid.innerHTML = list.length ? '' : '<div class="award-empty">내역이 없습니다.</div>';
+  list.forEach(a => {
     const card = document.createElement('div');
     card.className = 'award-card';
-    card.innerHTML = `<div class="award-card-inner">
-      <div class="award-rank">${a.rank}</div>
-      <div class="award-title">${a.title}</div>
-      <div class="award-student"><strong>${a.student}</strong> · ${a.grade}</div>
-      <div class="award-meta"><span class="award-tag">${a.type}</span></div>
-    </div>`;
+    card.innerHTML = `<div class="award-card-inner"><div class="award-rank">◈ ${a.rank}</div>
+      <div class="award-title">${a.title}</div><div class="award-student">${a.student} · ${a.grade}</div></div>`;
     grid.appendChild(card);
   });
 }
@@ -1963,14 +1889,33 @@ function filterAward(type, btn) {
   renderAwards();
 }
 
+// ════════════════════════════════════════
+// 3. 초기화 및 실행 (가장 중요)
+// ════════════════════════════════════════
+async function loadSheetData() {
+  try {
+    const response = await fetch(APPS_SCRIPT_URL);
+    const data = await response.json();
+    if (data.gallery) GALLERY_DATA = sheetToGallery(data.gallery);
+    if (data.award) AWARD_DATA_LIVE = sheetToAward(data.award);
+    buildGallery();
+    renderAwards();
+  } catch (e) {
+    console.error("데이터 로드 실패:", e);
+    // 실패 시 샘플 데이터라도 보여주기 위해 build 호출
+    buildGallery();
+  }
+}
+
+// 탭 기능 및 기타 인터랙션
 function switchGrade(idx) {
-  document.querySelectorAll('.cur-tab').forEach((t,i)  => t.classList.toggle('active', i===idx));
+  document.querySelectorAll('.cur-tab').forEach((t,i) => t.classList.toggle('active', i===idx));
   document.querySelectorAll('.cur-panel').forEach((p,i) => p.classList.toggle('active', i===idx));
 }
 function toggleCurSubject(el) { el.classList.toggle('open'); }
 
-// 초기 실행
-window.onload = loadSheetData;
+// ★ 페이지 로드 시 데이터 함수 호출 ★
+window.addEventListener('DOMContentLoaded', loadSheetData);
 </script>
 </body>
 </html>
