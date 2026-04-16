@@ -1985,9 +1985,8 @@ function goSlide(idx, animate=true) {
   const track = document.getElementById('viewerTrack');
   if (!track) return;
   if (!animate) track.style.transition = 'none';
-  // 실제 뷰어 너비로 계산해서 정확히 이동
-  const viewerWidth = track.parentElement.offsetWidth;
-  track.style.transform = `translateX(-${gSlide * viewerWidth}px)`;
+  // % 방식으로 복원 — 슬라이드가 flex:0 0 100%이므로 % 기준이 정확
+  track.style.transform = `translateX(-${gSlide * 100}%)`;
   if (!animate) setTimeout(() => track.style.transition = '', 50);
   const cur = document.getElementById('viewerCur');
   if (cur) cur.textContent = gSlide + 1;
@@ -2008,9 +2007,8 @@ function switchCat(ci) {
 window.addEventListener('resize', () => {
   const track = document.getElementById('viewerTrack');
   if (!track) return;
-  const viewerWidth = track.parentElement.offsetWidth;
   track.style.transition = 'none';
-  track.style.transform = `translateX(-${gSlide * viewerWidth}px)`;
+  track.style.transform = `translateX(-${gSlide * 100}%)`;
   setTimeout(() => track.style.transition = '', 50);
 });
 
