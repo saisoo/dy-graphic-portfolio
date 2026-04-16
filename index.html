@@ -1872,36 +1872,47 @@ let awardFilter = '전체';
 // 5. 시트 데이터 변환 함수
 // ════════════════════════════════════════
 function sheetToGallery(rows) {
-  const map = {};
-  rows.forEach(row => {
-    const cat   = String(row['카테고리']  || '').trim();
-    const title = String(row['작품제목']  || '').trim();
-    const pub   = String(row['공개여부']  || '공개').trim();
+  var map = {};
+  rows.forEach(function(row) {
+    var cat   = String(row['카테고리']  || row['category'] || '').trim();
+    var title = String(row['작품제목']  || row['title'] || '').trim();
+    var pub   = String(row['공개여부']  || '공개').trim();
     if (!cat || !title || pub === '비공개') return;
-    let img = String(row['이미지URL'] || '').trim();
-    if (img.includes('drive.google.com')) {
-      let fid = '';
-      if (img.includes('/d/')) {
+
+    var img = String(row['이미지URL'] || '').trim();
+    if (img.indexOf('drive.google.com') !== -1) {
+      var fid = '';
+      if (img.indexOf('/d/') !== -1) {
         fid = img.split('/d/')[1].split('/')[0];
-      } else if (img.includes('id=')) {
+      } else if (img.indexOf('id=') !== -1) {
         fid = img.split('id=')[1].split('&')[0];
       }
-      // lh3 방식 — Safari 포함 모든 기기에서 인증 없이 작동
+      
       if (fid) {
-  // 모바일 기기라면 조금 작게(800px), 아니면 1200px로 서빙
-  const imgWidth = window.innerWidth < 768 ? 'w800' : 'w1200';
-  img = `https://lh3.googleusercontent.com/u/0/d/${fid}=${imgWidth}`;
-}
-    const grade = String(row['학년']     || '').trim();
-    const desc  = String(row['작품설명'] || '').trim();
-    const stu   = String(row['학생이름'] || '').trim();
-    const sub   = grade && desc ? `${grade} · ${desc}` : (grade || desc || title);
+        var imgWidth = window.innerWidth < 768 ? 'w800' : 'w1200';
+        // 이 부분이 핵심입니다. fid 변수를 안전하게 합칩니다.
+        img = 'https://lh3.googleusercontent.com/d/' + fid + '=' + imgWidth;
+      }
+    }
+    
+    var grade = String(row['학년']     || '').trim();
+    var desc  = String(row['작품설명'] || '').trim();
+    var stu   = String(row['학생이름'] || '').trim();
+    var sub   = grade && desc ? (grade + ' · ' + desc) : (grade || desc || title);
+    
     if (!map[cat]) map[cat] = [];
-    map[cat].push({ title, sub, img, student: stu });
+    map[cat].push({ title: title, sub: sub, img: img, student: stu });
   });
+
   return CAT_ORDER
-    .filter(c => map[c] && map[c].length > 0)
-    .map(c => ({ cat: c, ...CAT_STYLES[c], desc: '', slides: map[c] }));
+    .filter(function(c) { return map[c] && map[c].length > 0; })
+    .map(function(c) { 
+      // 기존 스타일과 데이터를 안전하게 합치는 방식입니다.
+      var base = { cat: c, desc: '', slides: map[c] };
+      var style = CAT_STYLES[c] || {};
+      for (var key in style) { base[key] = style[key]; }
+      return base;
+    });
 }
 
 const RANK_ICON_MAP = {'대상':'◈','금상':'◈','최우수상':'◈','우수상':'◈','장려상':'◈','교장상':'◈','특별상':'◈','입선':'◈'};
