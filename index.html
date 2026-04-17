@@ -332,27 +332,22 @@
     overflow: hidden; border-radius: 4px; background: var(--surface);
   }
   .viewer-track {
-    position: relative;
-    width: 100%; height: 100%;
+    display: flex;
+    height: 100%;
+    will-change: transform;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    transition: transform 0.5s ease;
   }
   .viewer-slide {
-    position: absolute;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    /* z-index 방식 — iOS가 opacity:0 이미지 로드 안 하는 문제 해결 */
-    z-index: 0;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.35s ease;
+    flex: 0 0 100%;
+    min-width: 100%;
+    width: 100%;
+    height: 100%;
+    position: relative;
+    overflow: hidden;
     -webkit-transform: translateZ(0);
     transform: translateZ(0);
-    /* 이미지는 항상 렌더링되도록 visibility는 visible 유지 */
-    visibility: visible;
-  }
-  .viewer-slide.active {
-    z-index: 1;
-    opacity: 1;
-    pointer-events: auto;
   }
   .viewer-slide-bg { position: absolute; inset: 0; opacity: 0.2; transition: opacity 0.4s; }
   .viewer-slide-img { width: 100%; height: 100%; object-fit: contain; display: block; background: var(--surface); }
@@ -1761,9 +1756,14 @@ var gCat = 0, gSlide = 0, awardFilter = '전체';
 
 // ════════════════════════════════════════════════
 // 이미지 URL — Apps Script에서 이미 변환된 URL 그대로 사용
-function convertImgUrl(url) {
-  if (!url) return '';
-  return url.toString().trim();
+function convertImgUrl(fileId) {
+  // Apps Script가 fileId만 반환함
+  // Apps Script URL에 ?img=fileId로 요청하면 이미지 직접 서빙
+  if (!fileId) return '';
+  fileId = fileId.toString().trim();
+  if (!fileId) return '';
+  // Apps Script 프록시 — iOS Safari 쿠키 문제 완전 우회
+  return APPS_SCRIPT_URL + '?img=' + fileId;
 }
 
 // ════════════════════════════════════════════════
@@ -1899,7 +1899,7 @@ function renderSlides() {
   for (var i = 0; i < cat.slides.length; i++) {
     var sl    = cat.slides[i];
     var slide = document.createElement('div');
-    slide.className = 'viewer-slide' + (i === 0 ? ' active' : '');
+    slide.className = 'viewer-slide';
 
     // 배경
     var bg = document.createElement('div');
@@ -1907,13 +1907,12 @@ function renderSlides() {
     bg.style.background = cat.grad;
     slide.appendChild(bg);
 
-    // 이미지 — DOM API로 생성해서 즉시 로드 트리거
+    // 이미지 — DOM API로 즉시 로드 트리거
     if (sl.img) {
       var img = document.createElement('img');
       img.className = 'viewer-slide-img';
       img.src = sl.img;
       img.alt = sl.title;
-      // iOS: 이미지 로드 실패 시 배경만 표시
       img.onerror = function() { this.style.display = 'none'; };
       slide.appendChild(img);
     }
@@ -1940,20 +1939,19 @@ function renderSlides() {
     }
   }
   if (total) total.innerHTML = cat.slides.length;
-  // 첫 번째 슬라이드는 renderSlides에서 이미 active 클래스 부여됨
-  var cur = document.getElementById('viewerCur');
-  if (cur) cur.innerHTML = 1;
+  goSlide(0, false);
 }
 
 function goSlide(idx, animate) {
   if (!GALLERY_DATA[gCat]) return;
   gSlide = Math.max(0, Math.min(idx, GALLERY_DATA[gCat].slides.length - 1));
-  // viewerTrack 안에서만 슬라이드 찾기
   var track = document.getElementById('viewerTrack');
   if (!track) return;
-  var slides = track.querySelectorAll('.viewer-slide');
-  for (var i = 0; i < slides.length; i++) {
-    slides[i].classList.toggle('active', i === gSlide);
+  // translate3d — GPU 가속, iOS에서도 안정적
+  track.style.transition = (animate === false) ? 'none' : 'transform 0.5s ease';
+  track.style.transform = 'translate3d(-' + (gSlide * 100) + '%, 0, 0)';
+  if (animate === false) {
+    setTimeout(function() { track.style.transition = 'transform 0.5s ease'; }, 50);
   }
   var cur = document.getElementById('viewerCur');
   if (cur) cur.innerHTML = gSlide + 1;
