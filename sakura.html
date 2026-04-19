@@ -260,8 +260,6 @@ class Petal {
   draw() {
     ctx.save();
     ctx.globalAlpha = this.opa;
-    ctx.save();
-    ctx.globalAlpha = a;
     ctx.translate(this.x, this.y);
     ctx.rotate(this.rot);
     this._shape();
