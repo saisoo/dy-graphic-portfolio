@@ -248,6 +248,7 @@ function buildGroundPetals() {
 }
 
 // ─── 꽃잎 클래스 ──────────────────────────────────────────────────────────────
+// float: 작고 느리게 떠다님 (밀도감) / fall: 조금 크고 천천히 낙하
 class Petal {
   constructor(burst, bx, by) {
     this.burst = !!burst;
@@ -256,29 +257,48 @@ class Petal {
   }
 
   _init(bx, by) {
-    this.col = COLORS[Math.floor(Math.random() * COLORS.length)];
-    this.s   = Math.random() * 8 + 4;
-    this.rot = Math.random() * Math.PI * 2;
-    this.rs  = (Math.random() - 0.5) * 0.03;  // 회전 느리게
-    this.wb  = Math.random() * Math.PI * 2;
-    this.wbs = Math.random() * 0.018 + 0.006; // 흔들림 주기 느리게
-    this.wba = Math.random() * 2.5  + 1.2;    // 흔들림 폭 넓게 (낙엽 느낌)
-    this.opa = Math.random() * 0.32 + 0.62;
+    this.float = Math.random() < 0.65; // 65% 부유, 35% 낙하
+    this.col   = COLORS[Math.floor(Math.random() * COLORS.length)];
+    this.rot   = Math.random() * Math.PI * 2;
+    this.rs    = (Math.random() - 0.5) * 0.02;
+    this.wb    = Math.random() * Math.PI * 2;
 
     if (this.burst) {
-      this.x  = bx + (Math.random() - 0.5) * 16;
-      this.y  = by + (Math.random() - 0.5) * 16;
-      const a = Math.random() * Math.PI * 2;
-      const spd = Math.random() * 5 + 1.5;    // 폭발 속도도 살짝 줄임
-      this.vx    = Math.cos(a) * spd;
-      this.vy    = Math.sin(a) * spd - 3;
+      this.s    = Math.random() * 9 + 3;
+      this.x    = bx + (Math.random() - 0.5) * 20;
+      this.y    = by + (Math.random() - 0.5) * 20;
+      const a   = Math.random() * Math.PI * 2;
+      const spd = Math.random() * 9 + 4;
+      this.vx   = Math.cos(a) * spd;
+      this.vy   = Math.sin(a) * spd - 5;
+      this.wbs  = Math.random() * 0.04 + 0.01;
+      this.wba  = Math.random() * 2 + 1;
+      this.opa  = Math.random() * 0.3 + 0.7;
       this.life  = 1.0;
-      this.decay = Math.random() * 0.006 + 0.003;
+      this.decay = Math.random() * 0.007 + 0.003;
+
+    } else if (this.float) {
+      // 작고 느리게 떠다니는 꽃잎 — 화면 위쪽에 밀집
+      this.s   = Math.random() * 4 + 1.5;
+      this.x   = Math.random() * W;
+      this.y   = Math.random() * H * 0.85;
+      this.vx  = (Math.random() - 0.5) * 0.5;
+      this.vy  = Math.random() * 0.18 + 0.03;
+      this.wbs = Math.random() * 0.012 + 0.004;
+      this.wba = Math.random() * 3.0 + 1.5;
+      this.opa = Math.random() * 0.45 + 0.45;
+      this.life = 1.0;
+
     } else {
-      this.x  = Math.random() * (W + 60) - 30;
-      this.y  = -Math.random() * H * 0.6 - 10;
-      this.vx = (Math.random() - 0.5) * 0.6;  // 수평 속도 줄임
-      this.vy = Math.random() * 0.5 + 0.15;   // 낙하 속도 크게 줄임
+      // 크고 천천히 떨어지는 꽃잎
+      this.s   = Math.random() * 7 + 4;
+      this.x   = Math.random() * (W + 80) - 40;
+      this.y   = -Math.random() * H * 0.5 - 10;
+      this.vx  = (Math.random() - 0.5) * 0.5;
+      this.vy  = Math.random() * 0.4 + 0.1;
+      this.wbs = Math.random() * 0.015 + 0.005;
+      this.wba = Math.random() * 2.5 + 1.0;
+      this.opa = Math.random() * 0.35 + 0.55;
       this.life = 1.0;
     }
   }
@@ -290,19 +310,22 @@ class Petal {
     this.rot += this.rs;
 
     if (this.burst) {
-      this.vy   += 0.10;   // 폭발 중력도 부드럽게
+      this.vy   += 0.12;
       this.vx   *= 0.97;
       this.life -= this.decay;
       if (this.life <= 0) { this.dead = true; return; }
+    } else if (this.float) {
+      this.vy += 0.0008;
+      this.vy  = Math.min(this.vy, 0.4);
     } else {
-      this.vy += 0.002;                    // 가속 거의 없음
-      this.vy  = Math.min(this.vy, 1.2);  // 최대 낙하 속도 절반으로
+      this.vy += 0.001;
+      this.vy  = Math.min(this.vy, 0.9);
     }
 
     this.x += this.vx + Math.sin(this.wb) * this.wba + wind;
     this.y += this.vy;
 
-    // 마우스 + 손 모두 처리
+    // 마우스 + 손 인터랙션 — 반경 크게
     const pts = [];
     if (mouseX !== null) pts.push({ x: mouseX, y: mouseY, strong: pressing });
     handPoints.forEach(h => pts.push({ x: h.x, y: h.y, strong: h.pinching }));
@@ -311,16 +334,16 @@ class Petal {
       const dx = this.x - pt.x;
       const dy = this.y - pt.y;
       const d  = Math.sqrt(dx * dx + dy * dy);
-      const R  = pt.strong ? 200 : 150;
+      const R  = pt.strong ? 320 : 220;
       if (d < R && d > 0.5) {
-        const f = ((R - d) / R) * (pt.strong ? 5.5 : 3.2);
+        const f = ((R - d) / R) * (pt.strong ? 9 : 5);
         this.x += (dx / d) * f;
         this.y += (dy / d) * f;
       }
     });
 
     if (!this.burst) {
-      if (this.y > H + 35 || this.x < -55 || this.x > W + 55) this.respawn();
+      if (this.y > H + 40 || this.x < -60 || this.x > W + 60) this.respawn();
     }
   }
 
@@ -330,10 +353,27 @@ class Petal {
     ctx.globalAlpha = a;
     ctx.translate(this.x, this.y);
     ctx.rotate(this.rot);
-    this._shape();
+    if (this.float) {
+      this._dot();
+    } else {
+      this._shape();
+    }
     ctx.restore();
   }
 
+  // 작은 꽃잎: 빠른 렌더링 타원
+  _dot() {
+    const s = this.s;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, s, s * 0.65, this.rot * 0.5, 0, Math.PI * 2);
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, s);
+    g.addColorStop(0, '#FFFFFF');
+    g.addColorStop(1, this.col + 'CC');
+    ctx.fillStyle = g;
+    ctx.fill();
+  }
+
+  // 큰 꽃잎: 사쿠라 형태
   _shape() {
     const s = this.s;
     ctx.beginPath();
@@ -343,37 +383,28 @@ class Petal {
     ctx.bezierCurveTo( 0, -s*0.80,  s*0.14, -s*0.92, s*0.36, -s*0.74);
     ctx.bezierCurveTo( s*0.88, -s*0.32, s*0.78, s*0.45, 0, s);
     ctx.closePath();
-
-    const g = ctx.createRadialGradient(0, -s*0.15, 0, 0, 0, s * 1.05);
+    const g = ctx.createRadialGradient(0, -s*0.1, 0, 0, 0, s);
     g.addColorStop(0,    '#FFFFFF');
-    g.addColorStop(0.45, this.col);
+    g.addColorStop(0.5,  this.col);
     g.addColorStop(1,    this.col + 'AA');
     ctx.fillStyle = g;
     ctx.fill();
-
-    ctx.beginPath();
-    ctx.moveTo(0,  s * 0.68);
-    ctx.lineTo(0, -s * 0.58);
-    ctx.strokeStyle = 'rgba(255,175,195,0.22)';
-    ctx.lineWidth = 0.45;
-    ctx.stroke();
   }
 }
 
 // ─── 꽃잎 초기화 ─────────────────────────────────────────────────────────────
 function initPetals() {
   petals = [];
-  const n = Math.min(Math.max(Math.floor((W * H) / 7500), 90), 220);
+  // 화면 크기에 따라 400~700개
+  const n = Math.min(Math.max(Math.floor((W * H) / 2800), 400), 700);
   for (let i = 0; i < n; i++) {
-    const p = new Petal();
-    p.y = Math.random() * H;
-    petals.push(p);
+    petals.push(new Petal());
   }
 }
 
 // ─── 꽃잎 폭발 ───────────────────────────────────────────────────────────────
 function burst(x, y) {
-  const n = Math.floor(Math.random() * 14) + 13;
+  const n = Math.floor(Math.random() * 20) + 20; // 더 많이
   for (let i = 0; i < n; i++) bursts.push(new Petal(true, x, y));
 }
 
@@ -420,9 +451,10 @@ function drawGroundPetals() {
 }
 
 function drawVignette() {
-  const v = ctx.createRadialGradient(W/2, H/2, H*0.28, W/2, H/2, H*0.88);
+  // 가장자리만 살짝 어둡게 — 꽃잎이 전체 화면에서 잘 보이도록
+  const v = ctx.createRadialGradient(W/2, H/2, H*0.4, W/2, H/2, H*1.0);
   v.addColorStop(0, 'transparent');
-  v.addColorStop(1, 'rgba(2,0,8,0.62)');
+  v.addColorStop(1, 'rgba(0,0,0,0.45)');
   ctx.fillStyle = v;
   ctx.fillRect(0, 0, W, H);
 }
