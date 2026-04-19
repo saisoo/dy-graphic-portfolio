@@ -73,64 +73,6 @@
     #webcam { display: none; }
 
     /* 메시지 */
-    #message {
-      position: fixed;
-      bottom: 9%;
-      left: 50%;
-      transform: translateX(-50%);
-      text-align: center;
-      opacity: 0;
-      transition: opacity 3s ease;
-      z-index: 100;
-      pointer-events: none;
-      white-space: nowrap;
-    }
-    #message.show { opacity: 1; }
-
-    #message h1 {
-      font-family: 'Noto Serif KR', serif;
-      font-weight: 300;
-      font-size: clamp(2.2rem, 5.5vw, 5rem);
-      color: #FFD4E0;
-      text-shadow: 0 0 60px rgba(255, 130, 170, 0.55), 0 0 120px rgba(255, 80, 140, 0.2);
-      letter-spacing: 0.25em;
-      margin-bottom: 0.55em;
-    }
-
-    #message p {
-      font-family: 'Noto Sans KR', sans-serif;
-      font-weight: 300;
-      font-size: clamp(0.85rem, 2vw, 1.5rem);
-      color: rgba(255, 220, 232, 0.65);
-      letter-spacing: 0.2em;
-      line-height: 2.2;
-    }
-
-    #message .school {
-      margin-top: 1.8em;
-      font-size: clamp(0.65rem, 1.4vw, 1rem);
-      color: rgba(255, 183, 197, 0.35);
-      letter-spacing: 0.4em;
-    }
-
-    /* 힌트 */
-    #hint {
-      position: fixed;
-      top: 5%;
-      left: 50%;
-      transform: translateX(-50%);
-      font-family: 'Noto Sans KR', sans-serif;
-      font-weight: 300;
-      font-size: clamp(0.65rem, 1.4vw, 0.95rem);
-      color: rgba(255, 183, 197, 0.28);
-      letter-spacing: 0.25em;
-      z-index: 100;
-      pointer-events: none;
-      opacity: 0;
-      transition: opacity 1.5s ease;
-      white-space: nowrap;
-    }
-    #hint.show { opacity: 1; }
 
     /* 컨트롤 버튼 */
     #controls {
@@ -185,13 +127,6 @@
   <div id="camLabel">손을 카메라 앞에 보여주세요</div>
 </div>
 
-<div id="message">
-  <h1>봄날의 기억</h1>
-  <p>꽃은 져도, 그 순간의 아름다움은<br>마음 속에 영원히 남습니다</p>
-  <p class="school">덕영고등학교 그래픽디자인과</p>
-</div>
-
-<div id="hint">✦ &nbsp; 화면을 클릭하거나 터치하여 꽃잎을 흩날려 보세요 &nbsp; ✦</div>
 
 <div id="controls">
   <button class="btn" id="camBtn" title="카메라 인터랙션">✋</button>
@@ -259,12 +194,10 @@ function buildTreeCanvas() {
   treeCtx.clearRect(0, 0, W, H);
   treeCtx.lineCap = 'round';
 
-  // 중앙 메인 벚나무 (크고 웅장하게)
-  branch(treeCtx, W * 0.5,  H * 1.02, -Math.PI / 2,        H * 0.48, 10);
-  // 좌측 보조 나무
-  branch(treeCtx, W * 0.08, H * 1.02, -Math.PI / 2 + 0.2,  H * 0.30,  8);
-  // 우측 보조 나무
-  branch(treeCtx, W * 0.92, H * 1.02, -Math.PI / 2 - 0.2,  H * 0.30,  8);
+  // 좌측 — 안쪽으로 기울어 프레임 형성
+  branch(treeCtx, W * 0.04, H * 1.02, -Math.PI / 2 + 0.22, H * 0.42,  9);
+  // 우측 — 안쪽으로 기울어 프레임 형성
+  branch(treeCtx, W * 0.96, H * 1.02, -Math.PI / 2 - 0.22, H * 0.42,  9);
 }
 
 function branch(c, x, y, angle, len, depth) {
@@ -455,25 +388,6 @@ function drawBg() {
   ctx.fillRect(0, 0, W, H);
 }
 
-function drawMoon() {
-  const mx = W * 0.72, my = H * 0.12, mr = H * 0.048;
-  // 달 주변 은은한 핑크 글로우
-  const glow = ctx.createRadialGradient(mx, my, 0, mx, my, H * 0.22);
-  glow.addColorStop(0,    'rgba(255,230,240,0.18)');
-  glow.addColorStop(0.4,  'rgba(255,200,220,0.07)');
-  glow.addColorStop(1,    'transparent');
-  ctx.fillStyle = glow;
-  ctx.fillRect(0, 0, W, H);
-
-  // 달 원판
-  ctx.beginPath();
-  ctx.arc(mx, my, mr, 0, Math.PI * 2);
-  const disc = ctx.createRadialGradient(mx - mr*0.2, my - mr*0.2, 0, mx, my, mr);
-  disc.addColorStop(0, 'rgba(255,255,248,0.95)');
-  disc.addColorStop(1, 'rgba(245,225,235,0.70)');
-  ctx.fillStyle = disc;
-  ctx.fill();
-}
 
 function drawStars() {
   stars.forEach(s => {
@@ -557,7 +471,6 @@ function loop() {
   tickWind();
 
   drawBg();
-  drawMoon();
   drawStars();
   ctx.drawImage(treeOff, 0, 0);
   drawGroundPetals();
@@ -720,13 +633,6 @@ document.getElementById('fsBtn').addEventListener('click', () => {
 resize();
 initPetals();
 
-setTimeout(() => document.getElementById('message').classList.add('show'), 2200);
-setTimeout(() => document.getElementById('hint').classList.add('show'),    4500);
-setTimeout(() => {
-  const h = document.getElementById('hint');
-  h.style.transition = 'opacity 2s';
-  h.style.opacity = '0';
-}, 9500);
 
 loop();
 </script>
