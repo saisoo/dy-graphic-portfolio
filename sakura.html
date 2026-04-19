@@ -156,7 +156,6 @@ let frame        = 0;
 let mouseX       = null, mouseY = null;
 let pressing     = false;
 let petals       = [];
-let bursts       = [];
 let groundPetals = [];
 let handPoints   = [];
 
@@ -183,34 +182,19 @@ function buildGroundPetals() {
 // ─── 꽃잎 클래스 ──────────────────────────────────────────────────────────────
 // sway(20%): 살랑살랑 / straight(80%): 수직 낙하
 class Petal {
-  constructor(burst, bx, by) {
-    this.burst = !!burst;
-    this.dead  = false;
-    this._init(bx, by);
+  constructor() {
+    this.dead = false;
+    this._init();
   }
 
-  _init(bx, by) {
-    this.sway = Math.random() < 0.20; // 20%만 살랑살랑
+  _init() {
+    this.sway = Math.random() < 0.20;
     this.col  = COLORS[Math.floor(Math.random() * COLORS.length)];
     this.rot  = Math.random() * Math.PI * 2;
     this.rs   = (Math.random() - 0.5) * 0.015;
     this.wb   = Math.random() * Math.PI * 2;
 
-    if (this.burst) {
-      this.s    = Math.random() * 9 + 3;
-      this.x    = bx + (Math.random() - 0.5) * 20;
-      this.y    = by + (Math.random() - 0.5) * 20;
-      const a   = Math.random() * Math.PI * 2;
-      const spd = Math.random() * 9 + 4;
-      this.vx   = Math.cos(a) * spd;
-      this.vy   = Math.sin(a) * spd - 5;
-      this.wbs  = Math.random() * 0.03 + 0.01;
-      this.wba  = Math.random() * 1.5 + 0.5;
-      this.opa  = Math.random() * 0.3 + 0.7;
-      this.life  = 1.0;
-      this.decay = Math.random() * 0.007 + 0.003;
-
-    } else if (this.sway) {
+    if (this.sway) {
       // 살랑살랑 — 작고 가볍게
       this.s   = Math.random() * 5 + 2;
       this.x   = Math.random() * (W + 60) - 30;
@@ -234,26 +218,21 @@ class Petal {
     }
   }
 
-  respawn() { this._init(0, 0); }
+  respawn() { this._init(); }
 
   update() {
     this.wb  += this.wbs;
     this.rot += this.rs;
 
-    if (this.burst) {
-      this.vy   += 0.12;
-      this.vx   *= 0.97;
-      this.life -= this.decay;
-      if (this.life <= 0) { this.dead = true; return; }
-    } else {
-      this.vy += 0.0005;
-      this.vy  = Math.min(this.vy, this.sway ? 0.5 : 0.6);
-    }
+    // 중력: 위로 올라갔다 다시 서서히 낙하
+    this.vy += 0.015;
+    this.vx *= 0.98; // 수평 감속
+    this.vy  = Math.min(this.vy, this.sway ? 0.5 : 0.6);
 
     this.x += this.vx + Math.sin(this.wb) * this.wba;
     this.y += this.vy;
 
-    // 인터랙션
+    // 호버 인터랙션 (밀어내기)
     const pts = [];
     if (mouseX !== null) pts.push({ x: mouseX, y: mouseY, strong: pressing });
     handPoints.forEach(h => pts.push({ x: h.x, y: h.y, strong: h.pinching }));
@@ -270,13 +249,12 @@ class Petal {
       }
     });
 
-    if (!this.burst) {
-      if (this.y > H + 40 || this.x < -70 || this.x > W + 70) this.respawn();
-    }
+    if (this.y > H + 40 || this.x < -70 || this.x > W + 70) this.respawn();
   }
 
   draw() {
-    const a = this.burst ? this.opa * this.life : this.opa;
+    ctx.save();
+    ctx.globalAlpha = this.opa;
     ctx.save();
     ctx.globalAlpha = a;
     ctx.translate(this.x, this.y);
@@ -313,10 +291,20 @@ function initPetals() {
   }
 }
 
-// ─── 꽃잎 폭발 ───────────────────────────────────────────────────────────────
-function burst(x, y) {
-  const n = Math.floor(Math.random() * 20) + 20; // 더 많이
-  for (let i = 0; i < n; i++) bursts.push(new Petal(true, x, y));
+// ─── 터치/클릭: 주변 꽃잎을 가볍게 위로 띄우기 ──────────────────────────────
+function floatUp(x, y) {
+  const R = 220;
+  petals.forEach(p => {
+    const dx = p.x - x;
+    const dy = p.y - y;
+    const d  = Math.sqrt(dx * dx + dy * dy);
+    if (d < R && d > 0) {
+      const force = (1 - d / R);
+      // 위로 살랑 튀어오름, 살짝 옆으로 흔들
+      p.vy  = -(Math.random() * 1.8 + 0.6) * force;
+      p.vx += (Math.random() - 0.5) * force * 1.2;
+    }
+  });
 }
 
 // ─── 배경 ────────────────────────────────────────────────────────────────────
@@ -400,9 +388,6 @@ function loop() {
 
   petals.forEach(p => { p.update(); p.draw(); });
 
-  bursts = bursts.filter(p => !p.dead);
-  bursts.forEach(p => { p.update(); p.draw(); });
-
   drawVignette();
   drawHandCursors();
 
@@ -421,7 +406,7 @@ canvas.addEventListener('mouseleave', () => { mouseX = null; mouseY = null; });
 canvas.addEventListener('mousedown',  e => {
   pressing = true;
   cursorEl.classList.add('active');
-  burst(e.clientX, e.clientY);
+  floatUp(e.clientX, e.clientY);
 });
 canvas.addEventListener('mouseup', () => {
   pressing = false;
@@ -429,7 +414,7 @@ canvas.addEventListener('mouseup', () => {
 });
 canvas.addEventListener('touchstart', e => {
   e.preventDefault();
-  [...e.changedTouches].forEach(t => burst(t.clientX, t.clientY));
+  [...e.changedTouches].forEach(t => floatUp(t.clientX, t.clientY));
 }, { passive: false });
 canvas.addEventListener('touchmove', e => {
   e.preventDefault();
