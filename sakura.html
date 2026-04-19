@@ -239,13 +239,13 @@ const COLORS = ['#FFB7C5','#FFC8D5','#FFD4E0','#FFECF1','#FFF0F5','#FFE4E8','#FF
 // ─── 별 ────────────────────────────────────────────────────────────────────
 function initStars() {
   stars = [];
-  const n = Math.floor((W * H) / 14000);
+  const n = Math.floor((W * H) / 7000); // 검은 배경이라 더 많이
   for (let i = 0; i < n; i++) {
     stars.push({
       x: Math.random() * W,
-      y: Math.random() * H * 0.65,
-      r: Math.random() * 1.4 + 0.2,
-      base: Math.random() * 0.45 + 0.05,
+      y: Math.random() * H * 0.70,
+      r: Math.random() * 1.6 + 0.3,
+      base: Math.random() * 0.55 + 0.15, // 더 밝게
       ts: Math.random() * 0.025 + 0.005,
       to: Math.random() * Math.PI * 2
     });
@@ -258,22 +258,44 @@ function buildTreeCanvas() {
   treeOff.height = H;
   treeCtx.clearRect(0, 0, W, H);
   treeCtx.lineCap = 'round';
-  branch(treeCtx, W * 0.06, H * 1.02, -Math.PI / 2 + 0.18, H * 0.30, 8);
-  branch(treeCtx, W * 0.94, H * 1.02, -Math.PI / 2 - 0.18, H * 0.30, 8);
+
+  // 중앙 메인 벚나무 (크고 웅장하게)
+  branch(treeCtx, W * 0.5,  H * 1.02, -Math.PI / 2,        H * 0.48, 10);
+  // 좌측 보조 나무
+  branch(treeCtx, W * 0.08, H * 1.02, -Math.PI / 2 + 0.2,  H * 0.30,  8);
+  // 우측 보조 나무
+  branch(treeCtx, W * 0.92, H * 1.02, -Math.PI / 2 - 0.2,  H * 0.30,  8);
 }
 
 function branch(c, x, y, angle, len, depth) {
-  if (depth === 0 || len < 2.5) return;
+  if (depth === 0 || len < 2) return;
   const ex = x + Math.cos(angle) * len;
   const ey = y + Math.sin(angle) * len;
+
   c.beginPath(); c.moveTo(x, y); c.lineTo(ex, ey);
-  c.lineWidth   = Math.max(0.4, depth * 1.1);
-  c.strokeStyle = `rgba(18,6,16,${0.45 + depth * 0.055})`;
+  c.lineWidth = Math.max(0.5, depth * 1.5);
+
+  // 굵은 가지: 어두운 갈색, 가는 끝가지: 핑크빛 은은하게
+  const t = depth / 10;
+  const r = Math.round(40  + t * 55);
+  const g = Math.round(15  + t * 20);
+  const b = Math.round(25  + t * 20);
+  const a = 0.55 + t * 0.35;
+  c.strokeStyle = `rgba(${r},${g},${b},${a})`;
   c.stroke();
-  const spread = depth > 4 ? 0.32 : 0.48;
-  branch(c, ex, ey, angle + spread, len * 0.68, depth - 1);
-  branch(c, ex, ey, angle - spread, len * 0.68, depth - 1);
-  if (depth > 3) branch(c, ex, ey, angle + spread * 0.1, len * 0.58, depth - 2);
+
+  // 끝가지에 분홍 글로우
+  if (depth <= 3) {
+    c.beginPath(); c.moveTo(x, y); c.lineTo(ex, ey);
+    c.strokeStyle = `rgba(220,130,160,${0.08 + (3 - depth) * 0.06})`;
+    c.lineWidth   = c.lineWidth * 2.5;
+    c.stroke();
+  }
+
+  const spread = depth > 5 ? 0.28 : 0.44;
+  branch(c, ex, ey, angle + spread, len * 0.66, depth - 1);
+  branch(c, ex, ey, angle - spread, len * 0.66, depth - 1);
+  if (depth > 4) branch(c, ex, ey, angle + spread * 0.1, len * 0.55, depth - 2);
 }
 
 // ─── 바닥 꽃잎 ───────────────────────────────────────────────────────────────
@@ -424,30 +446,31 @@ function burst(x, y) {
 
 // ─── 배경 ────────────────────────────────────────────────────────────────────
 function drawBg() {
+  // 순수 검정 → 아주 미세한 짙은 갈색 (완전 평면 피하기)
   const sky = ctx.createLinearGradient(0, 0, 0, H);
-  sky.addColorStop(0,    '#050210');
-  sky.addColorStop(0.28, '#130b2c');
-  sky.addColorStop(0.58, '#3b144e');
-  sky.addColorStop(0.80, '#782c68');
-  sky.addColorStop(1,    '#c05888');
+  sky.addColorStop(0,   '#000000');
+  sky.addColorStop(0.7, '#050202');
+  sky.addColorStop(1,   '#0a0305');
   ctx.fillStyle = sky;
   ctx.fillRect(0, 0, W, H);
 }
 
 function drawMoon() {
-  const mx = W * 0.77, my = H * 0.14, mr = H * 0.042;
-  const glow = ctx.createRadialGradient(mx, my, 0, mx, my, H * 0.26);
-  glow.addColorStop(0,    'rgba(255,240,215,0.13)');
-  glow.addColorStop(0.35, 'rgba(255,200,230,0.05)');
+  const mx = W * 0.72, my = H * 0.12, mr = H * 0.048;
+  // 달 주변 은은한 핑크 글로우
+  const glow = ctx.createRadialGradient(mx, my, 0, mx, my, H * 0.22);
+  glow.addColorStop(0,    'rgba(255,230,240,0.18)');
+  glow.addColorStop(0.4,  'rgba(255,200,220,0.07)');
   glow.addColorStop(1,    'transparent');
   ctx.fillStyle = glow;
   ctx.fillRect(0, 0, W, H);
 
+  // 달 원판
   ctx.beginPath();
   ctx.arc(mx, my, mr, 0, Math.PI * 2);
-  const disc = ctx.createRadialGradient(mx - mr*0.25, my - mr*0.25, 0, mx, my, mr);
-  disc.addColorStop(0, 'rgba(255,252,240,0.92)');
-  disc.addColorStop(1, 'rgba(255,215,195,0.55)');
+  const disc = ctx.createRadialGradient(mx - mr*0.2, my - mr*0.2, 0, mx, my, mr);
+  disc.addColorStop(0, 'rgba(255,255,248,0.95)');
+  disc.addColorStop(1, 'rgba(245,225,235,0.70)');
   ctx.fillStyle = disc;
   ctx.fill();
 }
