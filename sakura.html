@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>봄날의 기억 — 벚꽃 미디어아트</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400&family=Noto+Sans+KR:wght@300&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #060310;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      cursor: none;
+    }
+
+    #c {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+    }
+
+    /* 마우스 커서 */
+    #cursor {
+      position: fixed;
+      width: 24px; height: 24px;
+      border: 1px solid rgba(255, 183, 197, 0.5);
+      border-radius: 50%;
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      transition: width 0.15s, height 0.15s, border-color 0.15s;
+      z-index: 9999;
+    }
+    #cursor.active {
+      width: 40px; height: 40px;
+      border-color: rgba(255, 183, 197, 0.9);
+    }
+    #cursor.cam-on { display: none; }
+
+    /* 카메라 미리보기 */
+    #camWrap {
+      position: fixed;
+      top: 2%; left: 2%;
+      z-index: 200;
+      opacity: 0;
+      transition: opacity 0.6s;
+      pointer-events: none;
+    }
+    #camWrap.show { opacity: 1; }
+
+    #camPreview {
+      width: clamp(160px, 16vw, 260px);
+      aspect-ratio: 4/3;
+      border: 1px solid rgba(255, 183, 197, 0.2);
+      border-radius: 10px;
+      display: block;
+    }
+
+    #camLabel {
+      text-align: center;
+      margin-top: 6px;
+      font-family: 'Noto Sans KR', sans-serif;
+      font-size: clamp(0.55rem, 1.1vw, 0.75rem);
+      color: rgba(255, 183, 197, 0.4);
+      letter-spacing: 0.2em;
+    }
+
+    /* 숨긴 비디오 */
+    #webcam { display: none; }
+
+    /* 메시지 */
+    #message {
+      position: fixed;
+      bottom: 9%;
+      left: 50%;
+      transform: translateX(-50%);
+      text-align: center;
+      opacity: 0;
+      transition: opacity 3s ease;
+      z-index: 100;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    #message.show { opacity: 1; }
+
+    #message h1 {
+      font-family: 'Noto Serif KR', serif;
+      font-weight: 300;
+      font-size: clamp(2.2rem, 5.5vw, 5rem);
+      color: #FFD4E0;
+      text-shadow: 0 0 60px rgba(255, 130, 170, 0.55), 0 0 120px rgba(255, 80, 140, 0.2);
+      letter-spacing: 0.25em;
+      margin-bottom: 0.55em;
+    }
+
+    #message p {
+      font-family: 'Noto Sans KR', sans-serif;
+      font-weight: 300;
+      font-size: clamp(0.85rem, 2vw, 1.5rem);
+      color: rgba(255, 220, 232, 0.65);
+      letter-spacing: 0.2em;
+      line-height: 2.2;
+    }
+
+    #message .school {
+      margin-top: 1.8em;
+      font-size: clamp(0.65rem, 1.4vw, 1rem);
+      color: rgba(255, 183, 197, 0.35);
+      letter-spacing: 0.4em;
+    }
+
+    /* 힌트 */
+    #hint {
+      position: fixed;
+      top: 5%;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: 'Noto Sans KR', sans-serif;
+      font-weight: 300;
+      font-size: clamp(0.65rem, 1.4vw, 0.95rem);
+      color: rgba(255, 183, 197, 0.28);
+      letter-spacing: 0.25em;
+      z-index: 100;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 1.5s ease;
+      white-space: nowrap;
+    }
+    #hint.show { opacity: 1; }
+
+    /* 컨트롤 버튼 */
+    #controls {
+      position: fixed;
+      bottom: 2.5%;
+      right: 2%;
+      display: flex;
+      gap: 12px;
+      z-index: 100;
+    }
+
+    .btn {
+      width: 48px; height: 48px;
+      border: 1px solid rgba(255, 183, 197, 0.25);
+      border-radius: 50%;
+      background: rgba(6, 3, 16, 0.55);
+      color: rgba(255, 183, 197, 0.5);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      transition: all 0.3s;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+    .btn:hover {
+      border-color: rgba(255, 183, 197, 0.7);
+      color: rgba(255, 183, 197, 1);
+      background: rgba(255, 183, 197, 0.08);
+      box-shadow: 0 0 20px rgba(255, 130, 170, 0.2);
+    }
+    .btn.on {
+      border-color: rgba(255, 130, 170, 0.8);
+      color: rgba(255, 150, 185, 1);
+      background: rgba(255, 100, 150, 0.15);
+      box-shadow: 0 0 18px rgba(255, 100, 150, 0.3);
+    }
+
+    audio { display: none; }
+  </style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+<div id="cursor"></div>
+<video id="webcam" autoplay playsinline></video>
+
+<!-- 카메라 미리보기 -->
+<div id="camWrap">
+  <canvas id="camPreview"></canvas>
+  <div id="camLabel">손을 카메라 앞에 보여주세요</div>
+</div>
+
+<div id="message">
+  <h1>봄날의 기억</h1>
+  <p>꽃은 져도, 그 순간의 아름다움은<br>마음 속에 영원히 남습니다</p>
+  <p class="school">덕영고등학교 그래픽디자인과</p>
+</div>
+
+<div id="hint">✦ &nbsp; 화면을 클릭하거나 터치하여 꽃잎을 흩날려 보세요 &nbsp; ✦</div>
+
+<div id="controls">
+  <button class="btn" id="camBtn" title="카메라 인터랙션">✋</button>
+  <button class="btn" id="musicBtn" title="음악 재생">♪</button>
+  <button class="btn" id="fsBtn" title="전체화면">⛶</button>
+</div>
+
+<audio id="bgm" loop>
+  <source src="bgm.mp3" type="audio/mpeg">
+</audio>
+
+<script>
+// ─── Canvas ────────────────────────────────────────────────────────────────
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+let W, H;
+
+function resize() {
+  W = canvas.width  = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+  buildTreeCanvas();
+  buildGroundPetals();
+  initStars();
+}
+window.addEventListener('resize', resize);
+
+// ─── 공유 상태 ──────────────────────────────────────────────────────────────
+let frame        = 0;
+let mouseX       = null, mouseY = null;
+let pressing     = false;
+let wind         = 0, windTarget = 0;
+let petals       = [];
+let bursts       = [];
+let stars        = [];
+let groundPetals = [];
+let handPoints   = []; // [{x, y, pinching}] — MediaPipe 손 좌표
+
+// 오프스크린 나무 캔버스
+const treeOff = document.createElement('canvas');
+const treeCtx = treeOff.getContext('2d');
+
+// ─── 색상 팔레트 ─────────────────────────────────────────────────────────────
+const COLORS = ['#FFB7C5','#FFC8D5','#FFD4E0','#FFECF1','#FFF0F5','#FFE4E8','#FFDDE8','#FFB3C8'];
+
+// ─── 별 ────────────────────────────────────────────────────────────────────
+function initStars() {
+  stars = [];
+  const n = Math.floor((W * H) / 14000);
+  for (let i = 0; i < n; i++) {
+    stars.push({
+      x: Math.random() * W,
+      y: Math.random() * H * 0.65,
+      r: Math.random() * 1.4 + 0.2,
+      base: Math.random() * 0.45 + 0.05,
+      ts: Math.random() * 0.025 + 0.005,
+      to: Math.random() * Math.PI * 2
+    });
+  }
+}
+
+// ─── 나무 실루엣 ──────────────────────────────────────────────────────────────
+function buildTreeCanvas() {
+  treeOff.width  = W;
+  treeOff.height = H;
+  treeCtx.clearRect(0, 0, W, H);
+  treeCtx.lineCap = 'round';
+  branch(treeCtx, W * 0.06, H * 1.02, -Math.PI / 2 + 0.18, H * 0.30, 8);
+  branch(treeCtx, W * 0.94, H * 1.02, -Math.PI / 2 - 0.18, H * 0.30, 8);
+}
+
+function branch(c, x, y, angle, len, depth) {
+  if (depth === 0 || len < 2.5) return;
+  const ex = x + Math.cos(angle) * len;
+  const ey = y + Math.sin(angle) * len;
+  c.beginPath(); c.moveTo(x, y); c.lineTo(ex, ey);
+  c.lineWidth   = Math.max(0.4, depth * 1.1);
+  c.strokeStyle = `rgba(18,6,16,${0.45 + depth * 0.055})`;
+  c.stroke();
+  const spread = depth > 4 ? 0.32 : 0.48;
+  branch(c, ex, ey, angle + spread, len * 0.68, depth - 1);
+  branch(c, ex, ey, angle - spread, len * 0.68, depth - 1);
+  if (depth > 3) branch(c, ex, ey, angle + spread * 0.1, len * 0.58, depth - 2);
+}
+
+// ─── 바닥 꽃잎 ───────────────────────────────────────────────────────────────
+function buildGroundPetals() {
+  groundPetals = [];
+  const n = Math.floor(W / 18);
+  for (let i = 0; i < n; i++) {
+    groundPetals.push({
+      x: Math.random() * W,
+      y: H - Math.random() * H * 0.04,
+      s: Math.random() * 5 + 2,
+      rot: Math.random() * Math.PI * 2,
+      col: COLORS[Math.floor(Math.random() * COLORS.length)],
+      a: Math.random() * 0.28 + 0.08
+    });
+  }
+}
+
+// ─── 꽃잎 클래스 ──────────────────────────────────────────────────────────────
+class Petal {
+  constructor(burst, bx, by) {
+    this.burst = !!burst;
+    this.dead  = false;
+    this._init(bx, by);
+  }
+
+  _init(bx, by) {
+    this.col = COLORS[Math.floor(Math.random() * COLORS.length)];
+    this.s   = Math.random() * 8 + 4;
+    this.rot = Math.random() * Math.PI * 2;
+    this.rs  = (Math.random() - 0.5) * 0.07;
+    this.wb  = Math.random() * Math.PI * 2;
+    this.wbs = Math.random() * 0.04 + 0.012;
+    this.wba = Math.random() * 1.8 + 0.6;
+    this.opa = Math.random() * 0.32 + 0.62;
+
+    if (this.burst) {
+      this.x  = bx + (Math.random() - 0.5) * 16;
+      this.y  = by + (Math.random() - 0.5) * 16;
+      const a = Math.random() * Math.PI * 2;
+      const spd = Math.random() * 7 + 2.5;
+      this.vx    = Math.cos(a) * spd;
+      this.vy    = Math.sin(a) * spd - 4;
+      this.life  = 1.0;
+      this.decay = Math.random() * 0.009 + 0.004;
+    } else {
+      this.x  = Math.random() * (W + 60) - 30;
+      this.y  = -Math.random() * H * 0.6 - 10;
+      this.vx = (Math.random() - 0.5) * 1.4;
+      this.vy = Math.random() * 1.3 + 0.4;
+      this.life = 1.0;
+    }
+  }
+
+  respawn() { this._init(0, 0); }
+
+  update() {
+    this.wb  += this.wbs;
+    this.rot += this.rs;
+
+    if (this.burst) {
+      this.vy   += 0.16;
+      this.vx   *= 0.97;
+      this.life -= this.decay;
+      if (this.life <= 0) { this.dead = true; return; }
+    } else {
+      this.vy += 0.004;
+      this.vy  = Math.min(this.vy, 2.8);
+    }
+
+    this.x += this.vx + Math.sin(this.wb) * this.wba + wind;
+    this.y += this.vy;
+
+    // 마우스 + 손 모두 처리
+    const pts = [];
+    if (mouseX !== null) pts.push({ x: mouseX, y: mouseY, strong: pressing });
+    handPoints.forEach(h => pts.push({ x: h.x, y: h.y, strong: h.pinching }));
+
+    pts.forEach(pt => {
+      const dx = this.x - pt.x;
+      const dy = this.y - pt.y;
+      const d  = Math.sqrt(dx * dx + dy * dy);
+      const R  = pt.strong ? 200 : 150;
+      if (d < R && d > 0.5) {
+        const f = ((R - d) / R) * (pt.strong ? 5.5 : 3.2);
+        this.x += (dx / d) * f;
+        this.y += (dy / d) * f;
+      }
+    });
+
+    if (!this.burst) {
+      if (this.y > H + 35 || this.x < -55 || this.x > W + 55) this.respawn();
+    }
+  }
+
+  draw() {
+    const a = this.burst ? this.opa * this.life : this.opa;
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.translate(this.x, this.y);
+    ctx.rotate(this.rot);
+    this._shape();
+    ctx.restore();
+  }
+
+  _shape() {
+    const s = this.s;
+    ctx.beginPath();
+    ctx.moveTo(0, s);
+    ctx.bezierCurveTo(-s*0.78, s*0.45, -s*0.88, -s*0.32, -s*0.36, -s*0.74);
+    ctx.bezierCurveTo(-s*0.14, -s*0.92, 0, -s*0.80, 0, -s*0.80);
+    ctx.bezierCurveTo( 0, -s*0.80,  s*0.14, -s*0.92, s*0.36, -s*0.74);
+    ctx.bezierCurveTo( s*0.88, -s*0.32, s*0.78, s*0.45, 0, s);
+    ctx.closePath();
+
+    const g = ctx.createRadialGradient(0, -s*0.15, 0, 0, 0, s * 1.05);
+    g.addColorStop(0,    '#FFFFFF');
+    g.addColorStop(0.45, this.col);
+    g.addColorStop(1,    this.col + 'AA');
+    ctx.fillStyle = g;
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(0,  s * 0.68);
+    ctx.lineTo(0, -s * 0.58);
+    ctx.strokeStyle = 'rgba(255,175,195,0.22)';
+    ctx.lineWidth = 0.45;
+    ctx.stroke();
+  }
+}
+
+// ─── 꽃잎 초기화 ─────────────────────────────────────────────────────────────
+function initPetals() {
+  petals = [];
+  const n = Math.min(Math.max(Math.floor((W * H) / 7500), 90), 220);
+  for (let i = 0; i < n; i++) {
+    const p = new Petal();
+    p.y = Math.random() * H;
+    petals.push(p);
+  }
+}
+
+// ─── 꽃잎 폭발 ───────────────────────────────────────────────────────────────
+function burst(x, y) {
+  const n = Math.floor(Math.random() * 14) + 13;
+  for (let i = 0; i < n; i++) bursts.push(new Petal(true, x, y));
+}
+
+// ─── 배경 ────────────────────────────────────────────────────────────────────
+function drawBg() {
+  const sky = ctx.createLinearGradient(0, 0, 0, H);
+  sky.addColorStop(0,    '#050210');
+  sky.addColorStop(0.28, '#130b2c');
+  sky.addColorStop(0.58, '#3b144e');
+  sky.addColorStop(0.80, '#782c68');
+  sky.addColorStop(1,    '#c05888');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, W, H);
+}
+
+function drawMoon() {
+  const mx = W * 0.77, my = H * 0.14, mr = H * 0.042;
+  const glow = ctx.createRadialGradient(mx, my, 0, mx, my, H * 0.26);
+  glow.addColorStop(0,    'rgba(255,240,215,0.13)');
+  glow.addColorStop(0.35, 'rgba(255,200,230,0.05)');
+  glow.addColorStop(1,    'transparent');
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.beginPath();
+  ctx.arc(mx, my, mr, 0, Math.PI * 2);
+  const disc = ctx.createRadialGradient(mx - mr*0.25, my - mr*0.25, 0, mx, my, mr);
+  disc.addColorStop(0, 'rgba(255,252,240,0.92)');
+  disc.addColorStop(1, 'rgba(255,215,195,0.55)');
+  ctx.fillStyle = disc;
+  ctx.fill();
+}
+
+function drawStars() {
+  stars.forEach(s => {
+    const tw = Math.sin(frame * s.ts + s.to) * 0.1;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255,242,252,${s.base + tw})`;
+    ctx.fill();
+  });
+}
+
+function drawGroundPetals() {
+  const gnd = ctx.createLinearGradient(0, H * 0.88, 0, H);
+  gnd.addColorStop(0, 'transparent');
+  gnd.addColorStop(1, 'rgba(200,100,140,0.12)');
+  ctx.fillStyle = gnd;
+  ctx.fillRect(0, H * 0.88, W, H * 0.12);
+
+  groundPetals.forEach(p => {
+    ctx.save();
+    ctx.globalAlpha = p.a;
+    ctx.translate(p.x, p.y);
+    ctx.rotate(p.rot);
+    ctx.beginPath();
+    ctx.ellipse(0, 0, p.s, p.s * 0.45, 0, 0, Math.PI * 2);
+    ctx.fillStyle = p.col;
+    ctx.fill();
+    ctx.restore();
+  });
+}
+
+function drawVignette() {
+  const v = ctx.createRadialGradient(W/2, H/2, H*0.28, W/2, H/2, H*0.88);
+  v.addColorStop(0, 'transparent');
+  v.addColorStop(1, 'rgba(2,0,8,0.62)');
+  ctx.fillStyle = v;
+  ctx.fillRect(0, 0, W, H);
+}
+
+// ─── 손 커서 (캔버스에 직접 그리기) ──────────────────────────────────────────
+function drawHandCursors() {
+  handPoints.forEach(pt => {
+    const r = pt.pinching ? 30 : 18;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(pt.x, pt.y, r, 0, Math.PI * 2);
+    ctx.strokeStyle = pt.pinching
+      ? 'rgba(255,100,150,0.9)'
+      : 'rgba(255,183,197,0.65)';
+    ctx.lineWidth = 1.8;
+    ctx.stroke();
+
+    // 중심 점
+    ctx.beginPath();
+    ctx.arc(pt.x, pt.y, 3, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,183,197,0.85)';
+    ctx.fill();
+
+    // 핀치 시 방사형 효과
+    if (pt.pinching) {
+      ctx.beginPath();
+      ctx.arc(pt.x, pt.y, r + 10, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(255,100,150,0.25)';
+      ctx.lineWidth = 6;
+      ctx.stroke();
+    }
+    ctx.restore();
+  });
+}
+
+// ─── 바람 ────────────────────────────────────────────────────────────────────
+function tickWind() {
+  if (Math.random() < 0.004) windTarget = (Math.random() - 0.5) * 1.8;
+  wind += (windTarget - wind) * 0.008;
+}
+
+// ─── 메인 루프 ───────────────────────────────────────────────────────────────
+function loop() {
+  frame++;
+  tickWind();
+
+  drawBg();
+  drawMoon();
+  drawStars();
+  ctx.drawImage(treeOff, 0, 0);
+  drawGroundPetals();
+
+  petals.forEach(p => { p.update(); p.draw(); });
+
+  bursts = bursts.filter(p => !p.dead);
+  bursts.forEach(p => { p.update(); p.draw(); });
+
+  drawVignette();
+  drawHandCursors();
+
+  requestAnimationFrame(loop);
+}
+
+// ─── 마우스 / 터치 인터랙션 ───────────────────────────────────────────────────
+const cursorEl = document.getElementById('cursor');
+
+canvas.addEventListener('mousemove', e => {
+  mouseX = e.clientX; mouseY = e.clientY;
+  cursorEl.style.left = e.clientX + 'px';
+  cursorEl.style.top  = e.clientY + 'px';
+});
+canvas.addEventListener('mouseleave', () => { mouseX = null; mouseY = null; });
+canvas.addEventListener('mousedown',  e => {
+  pressing = true;
+  cursorEl.classList.add('active');
+  burst(e.clientX, e.clientY);
+});
+canvas.addEventListener('mouseup', () => {
+  pressing = false;
+  cursorEl.classList.remove('active');
+});
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  [...e.changedTouches].forEach(t => burst(t.clientX, t.clientY));
+}, { passive: false });
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  const t = e.touches[0];
+  mouseX = t.clientX; mouseY = t.clientY;
+}, { passive: false });
+canvas.addEventListener('touchend', () => { mouseX = null; mouseY = null; });
+
+// ─── MediaPipe 카메라 인터랙션 ────────────────────────────────────────────────
+const webcamEl  = document.getElementById('webcam');
+const camWrap   = document.getElementById('camWrap');
+const prevCanvas = document.getElementById('camPreview');
+const prevCtx   = prevCanvas.getContext('2d');
+
+let camActive   = false;
+let mpCamera    = null;
+let mpHands     = null;
+let lastPinch   = [false, false]; // 손 2개까지 핀치 상태 추적
+
+function onHandResults(results) {
+  handPoints = [];
+
+  // 카메라 미리보기 그리기 (좌우 반전)
+  const pw = prevCanvas.width;
+  const ph = prevCanvas.height;
+  prevCtx.save();
+  prevCtx.scale(-1, 1);
+  prevCtx.drawImage(results.image, -pw, 0, pw, ph);
+  prevCtx.restore();
+
+  if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
+    lastPinch = [false, false];
+    return;
+  }
+
+  results.multiHandLandmarks.forEach((landmarks, i) => {
+    // 검지 끝 (8번) → 화면 좌표로 변환 (X 미러)
+    const tip   = landmarks[8];
+    const thumb = landmarks[4];
+
+    const sx = (1 - tip.x) * W;
+    const sy = tip.y * H;
+
+    // 핀치 감지: 엄지-검지 거리
+    const pd = Math.hypot(tip.x - thumb.x, tip.y - thumb.y);
+    const pinching = pd < 0.07;
+
+    handPoints.push({ x: sx, y: sy, pinching });
+
+    // 핀치 시작 순간에만 폭발 (연속 폭발 방지)
+    if (pinching && !lastPinch[i]) burst(sx, sy);
+    lastPinch[i] = pinching;
+  });
+}
+
+function startCamera() {
+  mpHands = new Hands({
+    locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+  });
+  mpHands.setOptions({
+    maxNumHands: 2,
+    modelComplexity: 1,
+    minDetectionConfidence: 0.7,
+    minTrackingConfidence: 0.5
+  });
+  mpHands.onResults(onHandResults);
+
+  // 미리보기 크기
+  prevCanvas.width  = 320;
+  prevCanvas.height = 240;
+
+  mpCamera = new Camera(webcamEl, {
+    onFrame: async () => { await mpHands.send({ image: webcamEl }); },
+    width: 640, height: 480
+  });
+  mpCamera.start();
+  camWrap.classList.add('show');
+  cursorEl.classList.add('cam-on');
+
+  // 힌트 교체
+  const hintEl = document.getElementById('hint');
+  hintEl.textContent = '✦  손을 카메라 앞에서 움직여 꽃잎을 흩날려 보세요  ✦';
+  hintEl.style.opacity = '1';
+  setTimeout(() => { hintEl.style.transition = 'opacity 2s'; hintEl.style.opacity = '0'; }, 5000);
+}
+
+function stopCamera() {
+  if (mpCamera) { mpCamera.stop(); mpCamera = null; }
+  if (mpHands)  { mpHands.close(); mpHands = null;  }
+  handPoints = [];
+  lastPinch  = [false, false];
+  camWrap.classList.remove('show');
+  cursorEl.classList.remove('cam-on');
+}
+
+// ─── 버튼 컨트롤 ─────────────────────────────────────────────────────────────
+const camBtn = document.getElementById('camBtn');
+camBtn.addEventListener('click', () => {
+  camActive = !camActive;
+  if (camActive) {
+    camBtn.classList.add('on');
+    startCamera();
+  } else {
+    camBtn.classList.remove('on');
+    stopCamera();
+  }
+});
+
+const bgm      = document.getElementById('bgm');
+const musicBtn = document.getElementById('musicBtn');
+let playing    = false;
+musicBtn.addEventListener('click', () => {
+  playing = !playing;
+  if (playing) { bgm.play().catch(() => {}); musicBtn.textContent = '♬'; }
+  else         { bgm.pause();                musicBtn.textContent = '♪'; }
+});
+
+document.getElementById('fsBtn').addEventListener('click', () => {
+  if (!document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {});
+  else document.exitFullscreen?.();
+});
+
+// ─── 시작 ────────────────────────────────────────────────────────────────────
+resize();
+initPetals();
+
+setTimeout(() => document.getElementById('message').classList.add('show'), 2200);
+setTimeout(() => document.getElementById('hint').classList.add('show'),    4500);
+setTimeout(() => {
+  const h = document.getElementById('hint');
+  h.style.transition = 'opacity 2s';
+  h.style.opacity = '0';
+}, 9500);
+
+loop();
+</script>
+</body>
+</html>
