@@ -180,7 +180,7 @@ function buildGroundPetals() {
 }
 
 // ─── 꽃잎 클래스 ──────────────────────────────────────────────────────────────
-// sway(20%): 살랑살랑 / straight(80%): 수직 낙하
+// sway(20%): 살랑살랑 느리게 / straight(80%): 수직 낙하 + 살짝 좌우
 class Petal {
   constructor() {
     this.dead = false;
@@ -191,30 +191,35 @@ class Petal {
     this.sway = Math.random() < 0.20;
     this.col  = COLORS[Math.floor(Math.random() * COLORS.length)];
     this.rot  = Math.random() * Math.PI * 2;
-    this.rs   = (Math.random() - 0.5) * 0.015;
     this.wb   = Math.random() * Math.PI * 2;
 
     if (this.sway) {
-      // 살랑살랑 — 작고 가볍게
-      this.s   = Math.random() * 5 + 2;
+      // ── 살랑살랑 (20%) ──────────────────────────────────────────
+      // 아주 작고 가벼운 꽃잎. 느린 진자처럼 좌우로 흔들리며 천천히 낙하.
+      this.s   = Math.random() * 3.5 + 1.5;       // 작고 가볍게
       this.x   = Math.random() * (W + 60) - 30;
       this.y   = -Math.random() * H - 10;
-      this.vx  = (Math.random() - 0.5) * 0.3;
-      this.vy  = Math.random() * 0.25 + 0.06;
-      this.wbs = Math.random() * 0.018 + 0.006;
-      this.wba = Math.random() * 3.5 + 2.0; // 흔들림 폭 크게
-      this.opa = Math.random() * 0.4 + 0.5;
+      this.vx  = (Math.random() - 0.5) * 0.12;
+      this.vy  = Math.random() * 0.06 + 0.02;     // 매우 느린 낙하
+      this.rs  = (Math.random() - 0.5) * 0.007;   // 아주 천천히 회전
+      this.wbs = Math.random() * 0.005 + 0.003;   // 느린 진자 주기
+      this.wba = Math.random() * 5.0 + 3.5;       // 넓은 좌우 흔들림
+      this.opa = Math.random() * 0.35 + 0.40;     // 살짝 투명하게
+      this.maxVy = Math.random() * 0.10 + 0.08;   // 최대 낙하 속도 아주 낮게
 
     } else {
-      // 수직 낙하 — 거의 흔들림 없음
-      this.s   = Math.random() * 6 + 2;
+      // ── 수직 낙하 (80%) ─────────────────────────────────────────
+      // 천천히 아래로, 아주 살짝 좌우로 떠내려와 단조롭지 않게.
+      this.s   = Math.random() * 6 + 2.5;
       this.x   = Math.random() * (W + 60) - 30;
       this.y   = -Math.random() * H - 10;
-      this.vx  = (Math.random() - 0.5) * 0.08; // 거의 직선
-      this.vy  = Math.random() * 0.3 + 0.08;
-      this.wbs = Math.random() * 0.005 + 0.002;
-      this.wba = Math.random() * 0.3 + 0.05;  // 흔들림 거의 없음
-      this.opa = Math.random() * 0.4 + 0.5;
+      this.vx  = (Math.random() - 0.5) * 0.06;    // 거의 직선
+      this.vy  = Math.random() * 0.12 + 0.04;     // 느린 낙하
+      this.rs  = (Math.random() - 0.5) * 0.009;   // 느린 회전
+      this.wbs = Math.random() * 0.004 + 0.002;   // 느린 주기
+      this.wba = Math.random() * 0.7 + 0.3;       // 살짝만 좌우로
+      this.opa = Math.random() * 0.35 + 0.50;
+      this.maxVy = Math.random() * 0.18 + 0.12;   // 수직 최대 속도
     }
   }
 
@@ -224,10 +229,10 @@ class Petal {
     this.wb  += this.wbs;
     this.rot += this.rs;
 
-    // 중력: 위로 올라갔다 다시 서서히 낙하
-    this.vy += 0.015;
-    this.vx *= 0.98; // 수평 감속
-    this.vy  = Math.min(this.vy, this.sway ? 0.5 : 0.6);
+    // 부드러운 중력 — 느리게 가속, 낮게 캡
+    this.vy += 0.004;
+    this.vx *= 0.985;
+    this.vy  = Math.min(this.vy, this.maxVy);
 
     this.x += this.vx + Math.sin(this.wb) * this.wba;
     this.y += this.vy;
