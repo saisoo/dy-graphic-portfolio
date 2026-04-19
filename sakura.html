@@ -147,9 +147,7 @@ let W, H;
 function resize() {
   W = canvas.width  = window.innerWidth;
   H = canvas.height = window.innerHeight;
-  buildTreeCanvas();
   buildGroundPetals();
-  initStars();
 }
 window.addEventListener('resize', resize);
 
@@ -157,79 +155,14 @@ window.addEventListener('resize', resize);
 let frame        = 0;
 let mouseX       = null, mouseY = null;
 let pressing     = false;
-let wind         = 0, windTarget = 0;
 let petals       = [];
 let bursts       = [];
-let stars        = [];
 let groundPetals = [];
-let handPoints   = []; // [{x, y, pinching}] — MediaPipe 손 좌표
-
-// 오프스크린 나무 캔버스
-const treeOff = document.createElement('canvas');
-const treeCtx = treeOff.getContext('2d');
+let handPoints   = [];
 
 // ─── 색상 팔레트 ─────────────────────────────────────────────────────────────
 const COLORS = ['#FFB7C5','#FFC8D5','#FFD4E0','#FFECF1','#FFF0F5','#FFE4E8','#FFDDE8','#FFB3C8'];
 
-// ─── 별 ────────────────────────────────────────────────────────────────────
-function initStars() {
-  stars = [];
-  const n = Math.floor((W * H) / 7000); // 검은 배경이라 더 많이
-  for (let i = 0; i < n; i++) {
-    stars.push({
-      x: Math.random() * W,
-      y: Math.random() * H * 0.70,
-      r: Math.random() * 1.6 + 0.3,
-      base: Math.random() * 0.55 + 0.15, // 더 밝게
-      ts: Math.random() * 0.025 + 0.005,
-      to: Math.random() * Math.PI * 2
-    });
-  }
-}
-
-// ─── 나무 실루엣 ──────────────────────────────────────────────────────────────
-function buildTreeCanvas() {
-  treeOff.width  = W;
-  treeOff.height = H;
-  treeCtx.clearRect(0, 0, W, H);
-  treeCtx.lineCap = 'round';
-
-  // 좌측 — 안쪽으로 기울어 프레임 형성
-  branch(treeCtx, W * 0.04, H * 1.02, -Math.PI / 2 + 0.22, H * 0.42,  9);
-  // 우측 — 안쪽으로 기울어 프레임 형성
-  branch(treeCtx, W * 0.96, H * 1.02, -Math.PI / 2 - 0.22, H * 0.42,  9);
-}
-
-function branch(c, x, y, angle, len, depth) {
-  if (depth === 0 || len < 2) return;
-  const ex = x + Math.cos(angle) * len;
-  const ey = y + Math.sin(angle) * len;
-
-  c.beginPath(); c.moveTo(x, y); c.lineTo(ex, ey);
-  c.lineWidth = Math.max(0.5, depth * 1.5);
-
-  // 굵은 가지: 어두운 갈색, 가는 끝가지: 핑크빛 은은하게
-  const t = depth / 10;
-  const r = Math.round(40  + t * 55);
-  const g = Math.round(15  + t * 20);
-  const b = Math.round(25  + t * 20);
-  const a = 0.55 + t * 0.35;
-  c.strokeStyle = `rgba(${r},${g},${b},${a})`;
-  c.stroke();
-
-  // 끝가지에 분홍 글로우
-  if (depth <= 3) {
-    c.beginPath(); c.moveTo(x, y); c.lineTo(ex, ey);
-    c.strokeStyle = `rgba(220,130,160,${0.08 + (3 - depth) * 0.06})`;
-    c.lineWidth   = c.lineWidth * 2.5;
-    c.stroke();
-  }
-
-  const spread = depth > 5 ? 0.28 : 0.44;
-  branch(c, ex, ey, angle + spread, len * 0.66, depth - 1);
-  branch(c, ex, ey, angle - spread, len * 0.66, depth - 1);
-  if (depth > 4) branch(c, ex, ey, angle + spread * 0.1, len * 0.55, depth - 2);
-}
 
 // ─── 바닥 꽃잎 ───────────────────────────────────────────────────────────────
 function buildGroundPetals() {
@@ -248,7 +181,7 @@ function buildGroundPetals() {
 }
 
 // ─── 꽃잎 클래스 ──────────────────────────────────────────────────────────────
-// float: 작고 느리게 떠다님 (밀도감) / fall: 조금 크고 천천히 낙하
+// sway(20%): 살랑살랑 / straight(80%): 수직 낙하
 class Petal {
   constructor(burst, bx, by) {
     this.burst = !!burst;
@@ -257,11 +190,11 @@ class Petal {
   }
 
   _init(bx, by) {
-    this.float = Math.random() < 0.65; // 65% 부유, 35% 낙하
-    this.col   = COLORS[Math.floor(Math.random() * COLORS.length)];
-    this.rot   = Math.random() * Math.PI * 2;
-    this.rs    = (Math.random() - 0.5) * 0.02;
-    this.wb    = Math.random() * Math.PI * 2;
+    this.sway = Math.random() < 0.20; // 20%만 살랑살랑
+    this.col  = COLORS[Math.floor(Math.random() * COLORS.length)];
+    this.rot  = Math.random() * Math.PI * 2;
+    this.rs   = (Math.random() - 0.5) * 0.015;
+    this.wb   = Math.random() * Math.PI * 2;
 
     if (this.burst) {
       this.s    = Math.random() * 9 + 3;
@@ -271,35 +204,33 @@ class Petal {
       const spd = Math.random() * 9 + 4;
       this.vx   = Math.cos(a) * spd;
       this.vy   = Math.sin(a) * spd - 5;
-      this.wbs  = Math.random() * 0.04 + 0.01;
-      this.wba  = Math.random() * 2 + 1;
+      this.wbs  = Math.random() * 0.03 + 0.01;
+      this.wba  = Math.random() * 1.5 + 0.5;
       this.opa  = Math.random() * 0.3 + 0.7;
       this.life  = 1.0;
       this.decay = Math.random() * 0.007 + 0.003;
 
-    } else if (this.float) {
-      // 작고 느리게 떠다니는 꽃잎 — 화면 위쪽에 밀집
-      this.s   = Math.random() * 4 + 1.5;
-      this.x   = Math.random() * W;
-      this.y   = Math.random() * H * 0.85;
-      this.vx  = (Math.random() - 0.5) * 0.5;
-      this.vy  = Math.random() * 0.18 + 0.03;
-      this.wbs = Math.random() * 0.012 + 0.004;
-      this.wba = Math.random() * 3.0 + 1.5;
-      this.opa = Math.random() * 0.45 + 0.45;
-      this.life = 1.0;
+    } else if (this.sway) {
+      // 살랑살랑 — 작고 가볍게
+      this.s   = Math.random() * 5 + 2;
+      this.x   = Math.random() * (W + 60) - 30;
+      this.y   = -Math.random() * H - 10;
+      this.vx  = (Math.random() - 0.5) * 0.3;
+      this.vy  = Math.random() * 0.25 + 0.06;
+      this.wbs = Math.random() * 0.018 + 0.006;
+      this.wba = Math.random() * 3.5 + 2.0; // 흔들림 폭 크게
+      this.opa = Math.random() * 0.4 + 0.5;
 
     } else {
-      // 크고 천천히 떨어지는 꽃잎
-      this.s   = Math.random() * 7 + 4;
-      this.x   = Math.random() * (W + 80) - 40;
-      this.y   = -Math.random() * H * 0.5 - 10;
-      this.vx  = (Math.random() - 0.5) * 0.5;
-      this.vy  = Math.random() * 0.4 + 0.1;
-      this.wbs = Math.random() * 0.015 + 0.005;
-      this.wba = Math.random() * 2.5 + 1.0;
-      this.opa = Math.random() * 0.35 + 0.55;
-      this.life = 1.0;
+      // 수직 낙하 — 거의 흔들림 없음
+      this.s   = Math.random() * 6 + 2;
+      this.x   = Math.random() * (W + 60) - 30;
+      this.y   = -Math.random() * H - 10;
+      this.vx  = (Math.random() - 0.5) * 0.08; // 거의 직선
+      this.vy  = Math.random() * 0.3 + 0.08;
+      this.wbs = Math.random() * 0.005 + 0.002;
+      this.wba = Math.random() * 0.3 + 0.05;  // 흔들림 거의 없음
+      this.opa = Math.random() * 0.4 + 0.5;
     }
   }
 
@@ -314,18 +245,15 @@ class Petal {
       this.vx   *= 0.97;
       this.life -= this.decay;
       if (this.life <= 0) { this.dead = true; return; }
-    } else if (this.float) {
-      this.vy += 0.0008;
-      this.vy  = Math.min(this.vy, 0.4);
     } else {
-      this.vy += 0.001;
-      this.vy  = Math.min(this.vy, 0.9);
+      this.vy += 0.0005;
+      this.vy  = Math.min(this.vy, this.sway ? 0.5 : 0.6);
     }
 
-    this.x += this.vx + Math.sin(this.wb) * this.wba + wind;
+    this.x += this.vx + Math.sin(this.wb) * this.wba;
     this.y += this.vy;
 
-    // 마우스 + 손 인터랙션 — 반경 크게
+    // 인터랙션
     const pts = [];
     if (mouseX !== null) pts.push({ x: mouseX, y: mouseY, strong: pressing });
     handPoints.forEach(h => pts.push({ x: h.x, y: h.y, strong: h.pinching }));
@@ -334,16 +262,16 @@ class Petal {
       const dx = this.x - pt.x;
       const dy = this.y - pt.y;
       const d  = Math.sqrt(dx * dx + dy * dy);
-      const R  = pt.strong ? 320 : 220;
+      const R  = pt.strong ? 300 : 200;
       if (d < R && d > 0.5) {
-        const f = ((R - d) / R) * (pt.strong ? 9 : 5);
+        const f = ((R - d) / R) * (pt.strong ? 8 : 4.5);
         this.x += (dx / d) * f;
         this.y += (dy / d) * f;
       }
     });
 
     if (!this.burst) {
-      if (this.y > H + 40 || this.x < -60 || this.x > W + 60) this.respawn();
+      if (this.y > H + 40 || this.x < -70 || this.x > W + 70) this.respawn();
     }
   }
 
@@ -353,27 +281,10 @@ class Petal {
     ctx.globalAlpha = a;
     ctx.translate(this.x, this.y);
     ctx.rotate(this.rot);
-    if (this.float) {
-      this._dot();
-    } else {
-      this._shape();
-    }
+    this._shape();
     ctx.restore();
   }
 
-  // 작은 꽃잎: 빠른 렌더링 타원
-  _dot() {
-    const s = this.s;
-    ctx.beginPath();
-    ctx.ellipse(0, 0, s, s * 0.65, this.rot * 0.5, 0, Math.PI * 2);
-    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, s);
-    g.addColorStop(0, '#FFFFFF');
-    g.addColorStop(1, this.col + 'CC');
-    ctx.fillStyle = g;
-    ctx.fill();
-  }
-
-  // 큰 꽃잎: 사쿠라 형태
   _shape() {
     const s = this.s;
     ctx.beginPath();
@@ -384,9 +295,9 @@ class Petal {
     ctx.bezierCurveTo( s*0.88, -s*0.32, s*0.78, s*0.45, 0, s);
     ctx.closePath();
     const g = ctx.createRadialGradient(0, -s*0.1, 0, 0, 0, s);
-    g.addColorStop(0,    '#FFFFFF');
-    g.addColorStop(0.5,  this.col);
-    g.addColorStop(1,    this.col + 'AA');
+    g.addColorStop(0,   '#FFFFFF');
+    g.addColorStop(0.5, this.col);
+    g.addColorStop(1,   this.col + 'AA');
     ctx.fillStyle = g;
     ctx.fill();
   }
@@ -410,24 +321,14 @@ function burst(x, y) {
 
 // ─── 배경 ────────────────────────────────────────────────────────────────────
 function drawBg() {
-  // 순수 검정 → 아주 미세한 짙은 갈색 (완전 평면 피하기)
+  // 참조 이미지처럼: 위는 짙은 암적갈색, 아래는 거의 검정
   const sky = ctx.createLinearGradient(0, 0, 0, H);
-  sky.addColorStop(0,   '#000000');
-  sky.addColorStop(0.7, '#050202');
-  sky.addColorStop(1,   '#0a0305');
+  sky.addColorStop(0,    '#1a0608');
+  sky.addColorStop(0.35, '#2a080c');
+  sky.addColorStop(0.65, '#140406');
+  sky.addColorStop(1,    '#000000');
   ctx.fillStyle = sky;
   ctx.fillRect(0, 0, W, H);
-}
-
-
-function drawStars() {
-  stars.forEach(s => {
-    const tw = Math.sin(frame * s.ts + s.to) * 0.1;
-    ctx.beginPath();
-    ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(255,242,252,${s.base + tw})`;
-    ctx.fill();
-  });
 }
 
 function drawGroundPetals() {
@@ -490,21 +391,11 @@ function drawHandCursors() {
   });
 }
 
-// ─── 바람 ────────────────────────────────────────────────────────────────────
-function tickWind() {
-  // 바람: 더 드물게, 더 약하게, 더 천천히 변함 (낙엽 느낌)
-  if (Math.random() < 0.002) windTarget = (Math.random() - 0.5) * 1.0;
-  wind += (windTarget - wind) * 0.004;
-}
-
 // ─── 메인 루프 ───────────────────────────────────────────────────────────────
 function loop() {
   frame++;
-  tickWind();
 
   drawBg();
-  drawStars();
-  ctx.drawImage(treeOff, 0, 0);
   drawGroundPetals();
 
   petals.forEach(p => { p.update(); p.draw(); });
