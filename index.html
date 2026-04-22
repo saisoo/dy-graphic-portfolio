@@ -1176,15 +1176,41 @@
   position: relative;
 }
 .sw-hero-track {
-  display: flex; height: 100%;
-  transition: transform 0.7s cubic-bezier(0.77,0,0.18,1);
-  will-change: transform;
+  position: relative;
+  width: 100%; height: 100%;
 }
 .sw-hero-slide {
-  min-width: 100%; height: 100%;
-  position: relative; flex-shrink: 0;
+  position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
   background: var(--surface);
+  opacity: 0;
+  pointer-events: none;
+}
+/* 현재 슬라이드: 보이는 상태 */
+.sw-hero-slide.active {
+  opacity: 1;
+  pointer-events: auto;
+  animation: none;
+}
+/* 나가는 슬라이드: 왼쪽으로 퇴장 */
+.sw-hero-slide.leaving {
+  opacity: 1;
+  pointer-events: none;
+  animation: heroLeave 0.6s ease forwards;
+}
+/* 들어오는 슬라이드: 오른쪽에서 등장 */
+.sw-hero-slide.entering {
+  opacity: 1;
+  pointer-events: none;
+  animation: heroEnter 0.6s ease forwards;
+}
+@keyframes heroLeave {
+  from { transform: translateX(0);     opacity: 1; }
+  to   { transform: translateX(-100%); opacity: 0.6; }
+}
+@keyframes heroEnter {
+  from { transform: translateX(100%);  opacity: 0.6; }
+  to   { transform: translateX(0);     opacity: 1; }
 }
 .sw-hero-slide img {
   width: 100%; height: 100%;
@@ -2567,6 +2593,9 @@ function initHeroSlider() {
   var current = 0;
   var timer   = null;
 
+  // 첫 슬라이드 활성화
+  slides[0].classList.add('active');
+
   // 인디케이터 생성
   dotsEl.innerHTML = '';
   for (var i = 0; i < total; i++) {
@@ -2580,10 +2609,28 @@ function initHeroSlider() {
   }
 
   function goHero(idx) {
-    // % 연산으로 순환 — 4번째 다음엔 0번째로
+    var prev = current;
     current = ((idx % total) + total) % total;
-    // 오른쪽→왼쪽 방향: translateX 음수로 이동
-    track.style.transform = 'translateX(-' + (current * 100) + '%)';
+    if (prev === current) return;
+
+    var prevSlide = slides[prev];
+    var nextSlide = slides[current];
+
+    // 이전 슬라이드: 왼쪽으로 퇴장
+    prevSlide.classList.remove('active', 'entering');
+    prevSlide.classList.add('leaving');
+    setTimeout(function() {
+      prevSlide.classList.remove('leaving');
+    }, 620);
+
+    // 다음 슬라이드: 오른쪽에서 등장
+    nextSlide.classList.remove('leaving');
+    nextSlide.classList.add('entering');
+    setTimeout(function() {
+      nextSlide.classList.remove('entering');
+      nextSlide.classList.add('active');
+    }, 620);
+
     var dots = dotsEl.querySelectorAll('.sw-hero-dot');
     for (var d = 0; d < dots.length; d++) {
       dots[d].classList.toggle('active', d === current);
