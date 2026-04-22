@@ -1446,6 +1446,69 @@
   .sp-masonry { columns: 1; }
   .sw-btn { padding: 10px 20px; font-size: 0.62rem; }
 }
+  /* 수상 카드 — 이미지 있을 때 */
+  .award-card.has-img { cursor: pointer; }
+  .award-card.has-img:hover {
+    border-color: var(--award-color);
+    transform: translateY(-4px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 16px rgba(var(--award-color),0.15);
+  }
+  .award-view-hint {
+    margin-top: 10px; font-size: 0.65rem;
+    letter-spacing: 0.12em; color: var(--award-color);
+    font-family: 'Orbitron', monospace; opacity: 0.8;
+  }
+
+  /* 수상작 뷰어 오버레이 */
+  .award-viewer {
+    position: fixed; inset: 0; z-index: 700;
+    background: rgba(0,0,0,0.92);
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.3s;
+  }
+  .award-viewer.open { opacity: 1; pointer-events: auto; }
+  .av-box {
+    position: relative;
+    max-width: min(860px, 92vw);
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    clip-path: polygon(0 0,calc(100% - 20px) 0,100% 20px,100% 100%,20px 100%,0 calc(100% - 20px));
+    overflow: hidden;
+  }
+  .av-close {
+    position: absolute; top: 14px; right: 18px; z-index: 10;
+    background: rgba(10,10,18,0.8); border: 1px solid var(--border);
+    color: var(--text-dim); font-size: 1rem;
+    width: 32px; height: 32px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .av-close:hover { color: var(--primary); border-color: var(--primary); }
+  .av-img-wrap {
+    width: 100%; max-height: 70vh;
+    display: flex; align-items: center; justify-content: center;
+    background: #000;
+    overflow: hidden;
+  }
+  .av-img-wrap img {
+    max-width: 100%; max-height: 70vh;
+    object-fit: contain; display: block;
+  }
+  .av-info {
+    padding: 18px 24px; display: flex; flex-direction: column; gap: 6px;
+    border-top: 1px solid var(--border);
+  }
+  .av-rank {
+    font-family: 'Orbitron', monospace; font-size: 0.68rem;
+    letter-spacing: 0.18em; color: var(--primary);
+  }
+  .av-student { font-size: 0.82rem; color: var(--text-dim); }
+
+  @media(max-width:480px) {
+    .av-img-wrap { max-height: 55vh; }
+  }
 </style>
 </head>
 <body>
@@ -1583,7 +1646,7 @@
       <span class="sw-desc">학년 · 반 · 번호를 선택하세요</span>
     </div>
 
-    <!-- Step 1: 학년 -->
+    <!-- 학년 -->
     <div class="sw-step" id="swStepGrade">
       <div class="sw-step-label">학년</div>
       <div class="sw-btn-group">
@@ -1592,8 +1655,8 @@
       </div>
     </div>
 
-    <!-- Step 2: 반 -->
-    <div class="sw-step sw-hidden" id="swStepClass">
+    <!-- 반 -->
+    <div class="sw-step" id="swStepClass">
       <div class="sw-step-label">반</div>
       <div class="sw-btn-group">
         <button class="sw-btn" onclick="selectClass(6)">6반</button>
@@ -1601,24 +1664,20 @@
       </div>
     </div>
 
-    <!-- Step 3: 번호 -->
-    <div class="sw-step sw-hidden" id="swStepNum">
+    <!-- 번호 — 1학년 6반 기준으로 미리 표시 -->
+    <div class="sw-step" id="swStepNum">
       <div class="sw-step-label">번호</div>
       <div class="sw-btn-group" id="swNumBtns"></div>
     </div>
 
-    <!-- 선택 결과 + 이동 버튼 -->
-    <div class="sw-result sw-hidden" id="swResult">
-      <div class="sw-result-text" id="swResultText"></div>
+    <!-- 이동 버튼 -->
+    <div class="sw-result" id="swResult">
+      <div class="sw-result-text" id="swResultText">1학년 6반 1번</div>
       <button class="sw-go-btn" onclick="goToStudent()">
         작품 보러가기 <span>→</span>
       </button>
     </div>
 
-    <!-- 다시 선택 -->
-    <button class="sw-reset-btn sw-hidden" id="swResetBtn" onclick="resetSelector()">
-      ↩ 다시 선택
-    </button>
   </div>
 </section>
 
@@ -2153,12 +2212,35 @@ var gCat = 0, gSlide = 0, awardFilter = '전체';
 // 이미지 URL — Apps Script에서 이미 변환된 URL 그대로 사용
 function convertImgUrl(fileId) {
   // Apps Script가 fileId만 반환함
-  // Apps Script URL에 ?img=fileId로 요청하면 이미지 직접 서빙
   if (!fileId) return '';
   fileId = fileId.toString().trim();
   if (!fileId) return '';
-  // Apps Script 프록시 — iOS Safari 쿠키 문제 완전 우회
   return APPS_SCRIPT_URL + '?img=' + fileId;
+}
+
+// 구글 드라이브 공유 주소 → 이미지 URL 자동 변환
+// 학생 개인 작품 img src="" 에 드라이브 공유 주소 그대로 붙여넣으면 됨
+function driveUrl(url) {
+  if (!url) return '';
+  url = url.toString().trim();
+  if (!url) return '';
+
+  // 이미 thumbnail URL이면 그대로
+  if (url.indexOf('thumbnail?id=') !== -1) return url;
+
+  // 구글 드라이브 URL이 아니면 그대로 (GitHub 등 다른 URL)
+  if (url.indexOf('drive.google.com') === -1) return url;
+
+  // 파일 ID 추출
+  // 형식1: https://drive.google.com/file/d/파일ID/view?usp=sharing
+  var m = url.match(/\/d\/([-\w]+)/);
+  if (m) return 'https://drive.google.com/thumbnail?id=' + m[1] + '&sz=w1200';
+
+  // 형식2: https://drive.google.com/open?id=파일ID
+  m = url.match(/[?&]id=([-\w]+)/);
+  if (m) return 'https://drive.google.com/thumbnail?id=' + m[1] + '&sz=w1200';
+
+  return url;
 }
 
 // ════════════════════════════════════════════════
@@ -2398,9 +2480,16 @@ function renderAwards() {
     var a     = list[i];
     var color = RANK_COLORS[a['수상등급']] || 'var(--accent3)';
     var tags  = (a['태그'] || '').split(',').map(function(t){ return t.trim(); }).filter(Boolean);
+    var imgUrl = (a['이미지URL'] || '').trim();
     var card  = document.createElement('div');
-    card.className = 'award-card';
+    card.className = 'award-card' + (imgUrl ? ' has-img' : '');
     card.style.cssText = '--award-color:'+color+';animation-delay:'+(i*0.07)+'s';
+    // 이미지 있으면 클릭 시 뷰어 열기
+    if (imgUrl) {
+      (function(url, data) {
+        card.addEventListener('click', function() { openAwardViewer(url, data); });
+      })(imgUrl, a);
+    }
     card.innerHTML =
       '<div class="award-card-inner">'+
         '<div class="award-rank"><span class="award-rank-icon">◈</span>'+(a['수상등급']||'')+'</div>'+
@@ -2410,9 +2499,28 @@ function renderAwards() {
           '<span class="award-tag type-'+((a['교내외']==='교외')?'out':'in')+'">'+(a['교내외']||'교외')+'</span>'+
           tags.map(function(t){ return '<span class="award-tag">'+t+'</span>'; }).join('')+
         '</div>'+
+        (imgUrl ? '<div class="award-view-hint">클릭하여 작품 보기 →</div>' : '')+
       '</div>';
     grid.appendChild(card);
   }
+}
+
+// 수상작 뷰어 열기
+function openAwardViewer(imgUrl, data) {
+  var viewer = document.getElementById('awardViewer');
+  if (!viewer) return;
+  document.getElementById('avImg').src = imgUrl;
+  document.getElementById('avRank').textContent = (data['수상등급']||'') + ' · ' + (data['공모전명']||'');
+  document.getElementById('avInfo').textContent =
+    (data['학생이름']||'') + ' · ' + (data['학년']||'') + ' · ' + (data['수상연도']||'');
+  viewer.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeAwardViewer() {
+  var viewer = document.getElementById('awardViewer');
+  if (viewer) { viewer.classList.remove('open'); document.body.style.overflow = ''; }
+  document.getElementById('avImg').src = '';
 }
 
 function filterAward(type, btn) {
@@ -2512,43 +2620,16 @@ function initHeroSlider() {
 // 학생 포트폴리오 — 선택기 & 개별 페이지
 // ════════════════════════════════════════════════
 
-// 학급별 번호 범위
 var CLASS_NUMS = {
   '1-6': 19, '1-7': 18,
   '2-6': 19, '2-7': 21
 };
 
-// 학생 데이터 (이미지 URL은 나중에 채워넣기)
-// 형식: STUDENTS['학년-반-번호'] = { sns: [...], imgs: [...] }
 var STUDENTS = {};
 
-// 선택 상태
-var swGrade = 0, swClass = 0, swNum = 0;
+var swGrade = 1, swClass = 6, swNum = 1;
 
-function selectGrade(g) {
-  swGrade = g; swClass = 0; swNum = 0;
-  // 학년 버튼 selected 표시
-  var btns = document.querySelectorAll('#swStepGrade .sw-btn');
-  for (var i = 0; i < btns.length; i++) {
-    btns[i].classList.toggle('selected', parseInt(btns[i].textContent) === g);
-  }
-  // 반 step 보이기, 번호/결과 숨기기
-  document.getElementById('swStepClass').classList.remove('sw-hidden');
-  document.getElementById('swStepNum').classList.add('sw-hidden');
-  document.getElementById('swResult').classList.add('sw-hidden');
-  document.getElementById('swResetBtn').classList.remove('sw-hidden');
-  // 반 버튼 초기화
-  var classBtns = document.querySelectorAll('#swStepClass .sw-btn');
-  for (var i = 0; i < classBtns.length; i++) classBtns[i].classList.remove('selected');
-}
-
-function selectClass(c) {
-  swClass = c; swNum = 0;
-  var btns = document.querySelectorAll('#swStepClass .sw-btn');
-  for (var i = 0; i < btns.length; i++) {
-    btns[i].classList.toggle('selected', parseInt(btns[i].textContent) === c);
-  }
-  // 번호 버튼 생성
+function renderNumBtns() {
   var key = swGrade + '-' + swClass;
   var max = CLASS_NUMS[key] || 0;
   var container = document.getElementById('swNumBtns');
@@ -2556,14 +2637,44 @@ function selectClass(c) {
   for (var n = 1; n <= max; n++) {
     (function(num) {
       var btn = document.createElement('button');
-      btn.className = 'sw-btn';
+      btn.className = 'sw-btn' + (num === swNum ? ' selected' : '');
       btn.textContent = num + '번';
       btn.onclick = function() { selectNum(num); };
       container.appendChild(btn);
     })(n);
   }
-  document.getElementById('swStepNum').classList.remove('sw-hidden');
-  document.getElementById('swResult').classList.add('sw-hidden');
+}
+
+function updateResult() {
+  var el = document.getElementById('swResultText');
+  if (el) el.textContent = swGrade + '학년 ' + swClass + '반 ' + swNum + '번';
+}
+
+function selectGrade(g) {
+  swGrade = g;
+  // 학년 버튼 표시
+  var btns = document.querySelectorAll('#swStepGrade .sw-btn');
+  for (var i = 0; i < btns.length; i++) {
+    btns[i].classList.toggle('selected', parseInt(btns[i].textContent) === g);
+  }
+  // 반이 현재 학년에 없으면 6반으로 초기화
+  swClass = 6; swNum = 1;
+  var classBtns = document.querySelectorAll('#swStepClass .sw-btn');
+  for (var i = 0; i < classBtns.length; i++) {
+    classBtns[i].classList.toggle('selected', parseInt(classBtns[i].textContent) === swClass);
+  }
+  renderNumBtns();
+  updateResult();
+}
+
+function selectClass(c) {
+  swClass = c; swNum = 1;
+  var btns = document.querySelectorAll('#swStepClass .sw-btn');
+  for (var i = 0; i < btns.length; i++) {
+    btns[i].classList.toggle('selected', parseInt(btns[i].textContent) === c);
+  }
+  renderNumBtns();
+  updateResult();
 }
 
 function selectNum(n) {
@@ -2572,21 +2683,24 @@ function selectNum(n) {
   for (var i = 0; i < btns.length; i++) {
     btns[i].classList.toggle('selected', parseInt(btns[i].textContent) === n);
   }
-  // 결과 표시
-  document.getElementById('swResultText').textContent =
-    swGrade + '학년 ' + swClass + '반 ' + swNum + '번';
-  document.getElementById('swResult').classList.remove('sw-hidden');
+  updateResult();
 }
 
-function resetSelector() {
-  swGrade = 0; swClass = 0; swNum = 0;
-  document.getElementById('swStepClass').classList.add('sw-hidden');
-  document.getElementById('swStepNum').classList.add('sw-hidden');
-  document.getElementById('swResult').classList.add('sw-hidden');
-  document.getElementById('swResetBtn').classList.add('sw-hidden');
-  var btns = document.querySelectorAll('.sw-btn');
-  for (var i = 0; i < btns.length; i++) btns[i].classList.remove('selected');
+function initSelector() {
+  // 초기 선택 표시
+  var gradeBtns = document.querySelectorAll('#swStepGrade .sw-btn');
+  for (var i = 0; i < gradeBtns.length; i++) {
+    gradeBtns[i].classList.toggle('selected', parseInt(gradeBtns[i].textContent) === swGrade);
+  }
+  var classBtns = document.querySelectorAll('#swStepClass .sw-btn');
+  for (var i = 0; i < classBtns.length; i++) {
+    classBtns[i].classList.toggle('selected', parseInt(classBtns[i].textContent) === swClass);
+  }
+  renderNumBtns();
+  updateResult();
 }
+
+function resetSelector() { /* 사용 안 함 */ }
 
 function goToStudent() {
   if (!swGrade || !swClass || !swNum) return;
@@ -2626,7 +2740,7 @@ function goToStudent() {
     if (data.imgs && data.imgs.length > 0) {
       data.imgs.forEach(function(src) {
         var img = document.createElement('img');
-        img.src = src;
+        img.src = driveUrl(src);
         img.loading = 'lazy';
         img.onclick = function() { openLightbox(src); };
         masonryEl.appendChild(img);
@@ -2789,6 +2903,7 @@ window.addEventListener('load', function() {
   initCursor();
   initParticles();
   initHeroSlider();
+  initSelector();
   initAfterSchool();
   initClubCards();
   initScrollEffects();
@@ -2815,6 +2930,20 @@ window.addEventListener('load', function() {
     });
 });
 </script>
+<!-- 수상작 뷰어 -->
+<div class="award-viewer" id="awardViewer" onclick="closeAwardViewer()">
+  <div class="av-box" onclick="event.stopPropagation()">
+    <button class="av-close" onclick="closeAwardViewer()">✕</button>
+    <div class="av-img-wrap">
+      <img id="avImg" src="" alt="수상작품">
+    </div>
+    <div class="av-info">
+      <div class="av-rank" id="avRank"></div>
+      <div class="av-student" id="avInfo"></div>
+    </div>
+  </div>
+</div>
+
 <!-- 라이트박스 -->
 <div class="sp-lightbox" id="spLightbox" onclick="closeLightbox()">
   <button class="sp-lightbox-close" onclick="closeLightbox()">✕</button>
