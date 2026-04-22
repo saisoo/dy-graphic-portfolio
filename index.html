@@ -1188,7 +1188,8 @@
 }
 .sw-hero-slide img {
   width: 100%; height: 100%;
-  object-fit: cover; display: block;
+  object-fit: contain; display: block;
+  background: var(--surface);
 }
 .sw-hero-slide .sw-hero-placeholder {
   text-align: center; padding: 60px 24px;
@@ -2559,12 +2560,15 @@ function initHeroSlider() {
   var dotsEl = document.getElementById('heroDots');
   if (!track || !dotsEl) return;
 
+  // 주석 처리된 슬라이드 제외하고 실제 슬라이드만
   var slides = track.querySelectorAll('.sw-hero-slide');
   var total  = slides.length;
+  if (total === 0) return;
   var current = 0;
   var timer   = null;
 
   // 인디케이터 생성
+  dotsEl.innerHTML = '';
   for (var i = 0; i < total; i++) {
     var dot = document.createElement('button');
     dot.className = 'sw-hero-dot' + (i === 0 ? ' active' : '');
@@ -2576,7 +2580,9 @@ function initHeroSlider() {
   }
 
   function goHero(idx) {
-    current = (idx + total) % total;
+    // % 연산으로 순환 — 4번째 다음엔 0번째로
+    current = ((idx % total) + total) % total;
+    // 오른쪽→왼쪽 방향: translateX 음수로 이동
     track.style.transform = 'translateX(-' + (current * 100) + '%)';
     var dots = dotsEl.querySelectorAll('.sw-hero-dot');
     for (var d = 0; d < dots.length; d++) {
@@ -2584,6 +2590,7 @@ function initHeroSlider() {
     }
   }
 
+  // 자동 슬라이드: 다음 슬라이드로 (오른쪽→왼쪽)
   function next() { goHero(current + 1); }
 
   function restartTimer() {
@@ -2593,10 +2600,16 @@ function initHeroSlider() {
 
   // 터치 스와이프
   var startX = 0;
-  track.addEventListener('touchstart', function(e) { startX = e.touches[0].clientX; }, { passive: true });
+  track.addEventListener('touchstart', function(e) {
+    startX = e.touches[0].clientX;
+  }, { passive: true });
   track.addEventListener('touchend', function(e) {
     var diff = startX - e.changedTouches[0].clientX;
-    if (Math.abs(diff) > 40) { goHero(diff > 0 ? current + 1 : current - 1); restartTimer(); }
+    // 왼쪽으로 스와이프 → 다음, 오른쪽으로 스와이프 → 이전
+    if (Math.abs(diff) > 40) {
+      goHero(diff > 0 ? current + 1 : current - 1);
+      restartTimer();
+    }
   }, { passive: true });
 
   restartTimer();
