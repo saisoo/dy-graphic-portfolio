@@ -2756,11 +2756,17 @@ function goToStudent() {
   page.classList.add('open');
   page.scrollTop = 0;
   document.body.style.overflow = 'hidden';
+  // 브라우저 뒤로가기 지원
+  history.pushState({ studentPage: true }, '', '#student-' + key);
 }
 
 function closeStudentPage() {
   document.getElementById('studentPage').classList.remove('open');
   document.body.style.overflow = '';
+  // 히스토리 상태가 student면 뒤로가기
+  if (location.hash.indexOf('#student-') === 0) {
+    history.back();
+  }
 }
 
 // 라이트박스
@@ -2898,6 +2904,15 @@ function initTopBtn() {
 // ════════════════════════════════════════════════
 // 메인 실행
 // ════════════════════════════════════════════════
+// 브라우저 뒤로가기 버튼 처리
+window.addEventListener('popstate', function(e) {
+  var page = document.getElementById('studentPage');
+  if (page && page.classList.contains('open')) {
+    page.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+});
+
 window.addEventListener('load', function() {
   startLoader();
   initCursor();
