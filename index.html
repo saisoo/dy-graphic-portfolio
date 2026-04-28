@@ -1336,6 +1336,42 @@
 
 .sw-hidden { display: none !important; }
 
+  /* 번호 썸네일 버튼 */
+  #swNumBtns { display: flex; flex-wrap: wrap; gap: 10px; }
+  .sw-num-btn {
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    background: transparent; border: none; cursor: none; padding: 0;
+  }
+  .sw-num-thumb {
+    width: 64px; height: 64px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    position: relative; overflow: hidden;
+    transition: border-color 0.25s, box-shadow 0.25s;
+  }
+  .sw-num-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .sw-num-empty {
+    font-size: 0.55rem; color: var(--text-mute); letter-spacing: 0.08em;
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .sw-num-badge {
+    position: absolute; bottom: 3px; right: 3px;
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--primary); box-shadow: 0 0 6px var(--primary);
+  }
+  .sw-num-label {
+    font-size: 0.65rem; color: var(--text-dim);
+    letter-spacing: 0.1em; font-family: 'Orbitron', monospace;
+  }
+  .sw-num-btn:hover .sw-num-thumb,
+  .sw-num-btn.selected .sw-num-thumb {
+    border-color: var(--primary);
+    box-shadow: 0 0 14px rgba(0,212,255,0.25);
+  }
+  .sw-num-btn.selected .sw-num-label { color: var(--primary); }
+  @media(max-width:480px) { .sw-num-thumb { width: 52px; height: 52px; } }
+
 /* ── 학생 개별 페이지 오버레이 ── */
 .student-page {
   position: fixed; inset: 0; z-index: 500;
@@ -1681,8 +1717,8 @@
     <div class="sw-step" id="swStepGrade">
       <div class="sw-step-label">학년</div>
       <div class="sw-btn-group">
-        <button class="sw-btn" onclick="selectGrade(1)">1학년</button>
         <button class="sw-btn" onclick="selectGrade(2)">2학년</button>
+        <button class="sw-btn" onclick="selectGrade(1)">1학년</button>
       </div>
     </div>
 
@@ -2747,40 +2783,54 @@ var STUDENTS = {
 
 }; // ← 이 줄은 건드리지 마세요
 
-var swGrade = 1, swClass = 6, swNum = 1;
+var swGrade = 2, swClass = 6, swNum = 1;
 
 function renderNumBtns() {
   var key = swGrade + '-' + swClass;
   var max = CLASS_NUMS[key] || 0;
   var container = document.getElementById('swNumBtns');
   container.innerHTML = '';
+  swNum = 0;
 
   var hasAny = false;
   for (var n = 1; n <= max; n++) {
     var studentKey = swGrade + '-' + swClass + '-' + n;
-    // STUDENTS에 등록된 학생만 버튼 표시
     if (!STUDENTS[studentKey]) continue;
     hasAny = true;
-    (function(num) {
+    (function(num, sKey) {
+      var data = STUDENTS[sKey];
+      // 첫 번째 이미지 src 추출 (썸네일용)
+      var thumbSrc = '';
+      if (data.imgs && data.imgs.length > 0) {
+        var first = data.imgs[0];
+        thumbSrc = driveUrl(typeof first === 'string' ? first : (first.src || ''));
+      }
+
       var btn = document.createElement('button');
-      btn.className = 'sw-btn' + (num === swNum ? ' selected' : '');
-      btn.textContent = num + '번';
+      btn.className = 'sw-num-btn' + (num === swNum ? ' selected' : '');
+      btn.innerHTML =
+        '<div class="sw-num-thumb">' +
+          (thumbSrc
+            ? '<img src="' + thumbSrc + '" loading="lazy" alt="">' +
+              '<div class="sw-num-badge"></div>'
+            : '<span class="sw-num-empty">준비중</span>') +
+        '</div>' +
+        '<div class="sw-num-label">' + num + '번</div>';
       btn.onclick = function() { selectNum(num); };
       container.appendChild(btn);
-    })(n);
+    })(n, studentKey);
   }
 
-  // 등록된 학생 없을 때 안내 문구
   if (!hasAny) {
     container.innerHTML =
       '<span style="font-size:0.75rem;color:var(--text-dim);letter-spacing:0.08em;">등록된 작품이 없습니다.</span>';
-    swNum = 0;
     updateResult();
   } else {
-    // 첫 번째 등록 학생으로 자동 선택
-    var firstBtn = container.querySelector('.sw-btn');
+    // 첫 번째 등록 학생 자동 선택
+    var firstBtn = container.querySelector('.sw-num-btn');
     if (firstBtn) {
-      swNum = parseInt(firstBtn.textContent);
+      var firstNum = parseInt(firstBtn.querySelector('.sw-num-label').textContent);
+      swNum = firstNum;
       firstBtn.classList.add('selected');
       updateResult();
     }
@@ -2827,9 +2877,10 @@ function selectClass(c) {
 
 function selectNum(n) {
   swNum = n;
-  var btns = document.querySelectorAll('#swStepNum .sw-btn');
+  var btns = document.querySelectorAll('.sw-num-btn');
   for (var i = 0; i < btns.length; i++) {
-    btns[i].classList.toggle('selected', parseInt(btns[i].textContent) === n);
+    var label = btns[i].querySelector('.sw-num-label');
+    btns[i].classList.toggle('selected', label && parseInt(label.textContent) === n);
   }
   updateResult();
 }
